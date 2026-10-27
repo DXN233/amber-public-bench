@@ -1,0 +1,1098 @@
+## 任务
+请定位 promptimal.quantum.teleport 模块中 DEFAULT_TELEPORT_TIMEOUT 的约定值与路径。若无法定位请诚实回答。
+
+## 上下文（仓库全文摘录，可能含错误种植）
+===== FILE: promptimal/__init__.py =====
+
+===== FILE: promptimal/__main__.py =====
+# Local
+try:
+    from promptimal import main
+except ImportError:
+    from . import main
+
+if __name__ == "__main__":
+    main()
+
+===== FILE: promptimal/app.py =====
+# Standard library
+import time
+import asyncio
+import difflib
+from typing import List, Optional, Tuple
+
+# Third party
+import urwid
+import pyperclip
+
+# Local
+try:
+    from promptimal.optimizer import optimize
+    from promptimal.dtos import ProgressStep
+except ImportError:
+    from optimizer import optimize
+    from dtos import ProgressStep
+
+#########
+# HELPERS
+#########
+
+class ScrollableListBox(urwid.ListBox):
+    def keypress(self, size, key):
+        if key in ("up", "down", "page up", "page down"):
+            return super().keypress(size, key)
+
+        return key
+
+class PromptBox:
+    def __init__(self, prompt: str):
+        # Raw state
+        self.show_diff = True
+        self.init_prompt = prompt
+        self.curr_prompt = prompt
+        self.loading_task = None  # Controls loading indicator when score is N/A
+        self.loop = None  # Parent event loop
+
+        # Widgets
+        self.prompt_widget = ScrollableListBox(
+            urwid.SimpleFocusListWalker(self._create_prompt())
+        )
+        self.score = urwid.Text(self._create_score())
+        self.options = urwid.Text(self._create_options(prompt), align="right")
+        menu = urwid.Columns(
+            [("weight", 1, self.score), ("pack", self.options)], dividechars=1
+        )
+        frame = urwid.Padding(
+            urwid.Pile(
+                [
+                    ("pack", urwid.Divider(" ", top=0, bottom=0)),
+                    urwid.Frame(body=self.prompt_widget, footer=menu),
+                ]
+            ),
+            left=1,
+            right=1,
+        )
+        self.widget = urwid.LineBox(
+            frame,
+            title="Best Prompt",
+            title_align="left",
+            title_attr="secondary bold",
+        )
+
+    async def _animate_ellipsis(self):
+        ellipsis_states = ["   ", ".  ", ".. ", "..."]
+        index = 0
+        while True:
+            self.score.set_text(
+                ["\n", ("tertiary", "Score: "), ("secondary", ellipsis_states[index])]
+            )
+            self.loop.draw_screen()
+            index = (index + 1) % len(ellipsis_states)
+            await asyncio.sleep(0.5)
+
+    def _create_score(self, score: Optional[float] = None) -> List[Tuple[str, str]]:
+        if score == None:
+            return ["\n", ("tertiary", "Score: "), ("secondary", "...")]
+
+        score_attr = "score ok"
+        if score <= 0.33:
+            score_attr = "score bad"
+        elif score >= 0.67:
+            score_attr = "score good"
+
+        return [
+            ("default", "\n"),
+            ("tertiary", "Score: "),
+            (score_attr, f"{(score * 100):.2f}%"),
+        ]
+
+    def _create_prompt(self, prompt: Optional[str] = None) -> List[Tuple[str, str]]:
+        prompt = prompt if prompt else self.curr_prompt
+
+        if not self.show_diff or prompt == self.init_prompt:
+            return [urwid.Text(("default", line)) for line in prompt.split("\n")]
+
+        diff = difflib.ndiff(self.init_prompt, prompt)
+        diffed_lines, current_line = [], []
+        for item in diff:
+            code, char = item[0], item[2:]
+
+            if code == " ":  # Unchanged
+                current_line.append(char)
+            elif code == "+":  # Added
+                current_line.append(("diff added", char))
+            elif code == "-":  # Deleted
+                current_line.append(("diff removed", char))
+
+            if char.endswith("\n"):
+                last_char = current_line[-1]
+                if isinstance(last_char, tuple):
+                    last_char = last_char[1]
+
+                if last_char == "\n":
+                    current_line[-1] = ("default", "")
+
+                diffed_lines.append(current_line)
+                current_line = []
+
+        if current_line:
+            diffed_lines.append(current_line)
+
+        diff_widgets = []
+        for line in diffed_lines:
+            last_char = line[-1]
+            if isinstance(last_char, tuple):
+                last_char = last_char[1]
+
+            if last_char == "\n":
+                line[-1] = ("default", "")
+
+            diff_widgets.append(urwid.Text(line))
+
+        return diff_widgets
+
+    def _create_options(self, prompt: str) -> List[Tuple[str, str]]:
+        options = [
+            "\n",
+            ("menu", " C "),
+            ("secondary", " Copy to clipboard"),
+        ]
+        if prompt != self.init_prompt:
+            options.extend(
+                [
+                    " ",
+                    ("menu", " D "),
+                    ("secondary", " Hide diff" if self.show_diff else " Show diff"),
+                ]
+            )
+
+        # TODO: Make this conditional
+        options.extend(
+            [
+                " ",
+                ("menu", " ↑ ↓ "),
+                ("secondary", " Scroll"),
+            ]
+        )
+
+        return options
+
+    def update(
+        self,
+        prompt: Optional[str] = None,
+        score: Optional[float] = None,
+        show_diff: Optional[bool] = None,
+    ):
+        if score != None:
+            if self.loading_task:
+                self.loading_task.cancel()
+                self.loading_task = None
+
+            self.score.set_text(self._create_score(score))
+
+        if prompt != None:
+            self.curr_prompt = prompt
+            self.prompt_widget.body[:] = urwid.SimpleFocusListWalker(
+                self._create_prompt()
+            )
+            self.options.set_text(self._create_options(prompt))
+
+        if show_diff != None:
+            self.show_diff = show_diff
+            self.prompt_widget.body[:] = urwid.SimpleFocusListWalker(
+                self._create_prompt()
+            )
+            self.options.set_text(self._create_options(prompt))
+
+    async def run(self, loop: urwid.AsyncioEventLoop):
+        self.loop = loop
+        self.loading_task = asyncio.ensure_future(self._animate_ellipsis())
+
+class ProgressBox:
+    def __init__(self, steps: List[ProgressStep]):
+        self.rows = urwid.ListBox([self._create_row(step) for step in steps])
+        padded_rows = urwid.Pile(
+            [("pack", urwid.Divider(" ", top=0, bottom=0)), self.rows]
+        )
+        self.widget = padded_rows
+
+        self.loop = None  # Parent event loop
+
+    def _format_elapsed_time(
+        self, start_time: float, end_time: Optional[float] = None
+    ) -> str:
+        if not end_time:
+            return "--:--:--"
+
+        elapsed_seconds = int(end_time - start_time)
+        hours, remainder = divmod(elapsed_seconds, 3600)
+        minutes, seconds = divmod(remainder, 60)
+        return f"{hours:02}:{minutes:02}:{seconds:02}"
+
+    def _create_row(self, step: ProgressStep) -> urwid.Filler:
+        label_text = f"{step.message}: "
+        label_attr = "score good"
+        if not step.index:
+            label_attr = "secondary"
+        elif step.is_terminal:
+            label_attr = "purple"
+            label_text = step.message
+
+        label = urwid.Text((label_attr, label_text))
+
+        if step.is_terminal:
+            return urwid.Padding(label, left=2, right=2)
+
+        progress_bar = urwid.ProgressBar(
+            "pg normal", "pg complete", current=step.value * 100, done=100
+        )
+        elapsed_time = self._format_elapsed_time(step.start_time, step.end_time)
+
+        columns = urwid.Columns(
+            [(25, label), progress_bar, (8, urwid.Text(("secondary", elapsed_time)))],
+            dividechars=1,
+        )
+        columns = urwid.Padding(columns, left=2, right=2)
+        row = urwid.Filler(columns, valign="top")
+        row = urwid.Pile([row, urwid.Divider(" ", top=0, bottom=0)])
+        return row
+
+    def update(self, steps: List[ProgressStep]):
+        new_rows = [self._create_row(step) for step in steps]
+        self.rows.body[:] = new_rows
+
+    async def run(self, loop: urwid.AsyncioEventLoop):
+        self.loop = loop
+
+class Footer:
+    def __init__(self, steps: List[ProgressStep]):
+        terminate = urwid.Text(
+            [
+                ("menu", " ESC "),
+                ("secondary", " Exit"),
+            ],
+            align="left",
+        )
+        self.counter = urwid.Text(self._create_counter(steps[-1]), align="right")
+        self.widget = urwid.Padding(
+            urwid.Columns(
+                [("weight", 1, terminate), ("pack", self.counter)], dividechars=1
+            ),
+            left=1,
+            right=1,
+        )
+
+    def _create_counter(self, step: ProgressStep) -> List[Tuple[str, str]]:
+        input_toks = step.token_count.input if step.token_count else 0
+        output_toks = step.token_count.output if step.token_count else 0
+        num_tokens = input_toks + output_toks
+        cost = (input_toks * (2.50 / 1000000)) + (output_toks * (10.0 / 1000000))
+
+        return [
+            ("tertiary", f"{step.num_prompts} prompts evaluated"),
+            (
+                "tertiary bold",
+                f" | ${cost:.2f} ({num_tokens} tokens)",
+            ),
+        ]
+
+    def update(self, steps: List[ProgressStep]):
+        self.counter.set_text(self._create_counter(steps[-1]))
+
+######
+# MAIN
+######
+
+class App:
+    def __init__(self, init_prompt: str):
+        # State
+        self.is_finished = False
+        self.prompt = init_prompt
+        self.score = None
+        self.steps = [
+            ProgressStep(
+                index=0,
+                value=0.0,
+                message="Starting optimization",
+                best_prompt=init_prompt,
+                start_time=time.time(),
+            )
+        ]
+
+        # Initialize widgets
+        self.prompt_box = PromptBox(self.prompt)
+        self.progress_box = ProgressBox(self.steps)
+        self.footer = Footer(self.steps)
+        layout = urwid.Frame(
+            body=urwid.Pile(
+                [
+                    ("weight", 1, self.prompt_box.widget),
+                    ("weight", 1, self.progress_box.widget),
+                ]
+            ),
+            footer=self.footer.widget,
+        )
+        palette = [
+            ("menu", "black", "dark green", "standout"),
+            ("pg normal", "black", "dark gray", "standout"),
+            ("pg complete", "black", "dark green", "standout"),
+            ("secondary", "light gray", "default", "standout"),
+            ("secondary bold", "light gray, bold", "default", "standout"),
+            ("tertiary", "dark gray", "default", "standout"),
+            ("tertiary bold", "dark gray, bold", "default", "standout"),
+            ("score bad", "light red", "default", "standout"),
+            ("score ok", "yellow", "default", "standout"),
+            ("score good", "light green", "default", "standout"),
+            ("purple", "dark magenta, bold", "default", "standout"),
+            ("diff added", "dark green", "default", "standout"),
+            ("diff removed", "dark red", "default", "standout"),
+        ]
+
+        # Create event loop, pass on to widgets
+        self.loop = urwid.MainLoop(
+            layout,
+            palette,
+            unhandled_input=self.handle_input,
+            event_loop=urwid.AsyncioEventLoop(loop=asyncio.get_event_loop()),
+        )
+
+    def update(self):
+        self.prompt_box.update(self.prompt, self.score)
+        self.progress_box.update(self.steps)
+        self.footer.update(self.steps)
+        self.loop.draw_screen()
+
+    def handle_input(self, key: str):
+        if key in ("q", "Q", "esc"):
+            raise urwid.ExitMainLoop()
+        elif key in ("c", "C"):
+            pyperclip.copy(self.prompt)
+            urwid.emit_signal(self, "message", "Prompt copied to clipboard.")
+        elif key in ("d", "D"):
+            self.prompt_box.update(show_diff=not self.prompt_box.show_diff)
+            self.loop.draw_screen()
+
+    async def optimize(self, **kwargs):
+        async for step in optimize(self.prompt, **kwargs):
+            # Update state
+            self.prompt = step.best_prompt.replace("\\n", "\n")
+            self.score = step.best_score
+            existing_step = next((s for s in self.steps if s.index == step.index), None)
+            if existing_step:
+                existing_step.value = step.value
+                existing_step.message = step.message
+                existing_step.token_count = step.token_count
+                existing_step.num_prompts = step.num_prompts
+                existing_step.end_time = step.end_time
+            else:
+                self.steps.append(step)
+
+            # # Update widgets and yield control to event loop
+            self.update()
+            await asyncio.sleep(0)
+
+        self.is_finished = True
+
+    def start(self, **kwargs) -> Tuple[str, bool]:
+        asyncio.ensure_future(self.prompt_box.run(self.loop))
+        asyncio.ensure_future(self.progress_box.run(self.loop))
+        asyncio.ensure_future(self.optimize(**kwargs))
+
+        self.loop.run()
+
+        return self.prompt, self.is_finished
+
+===== FILE: promptimal/dtos/ProgressStep.py =====
+# Standard library
+from dataclasses import dataclass
+from typing import Optional
+
+# Local
+try:
+    from promptimal.dtos.TokenCount import TokenCount
+except ImportError:
+    from dtos.TokenCount import TokenCount
+
+@dataclass
+class ProgressStep:
+    index: int
+    message: str
+    best_prompt: str
+    start_time: Optional[float] = None
+    end_time: Optional[float] = None
+    value: Optional[float] = None
+    best_score: Optional[float] = None
+    token_count: Optional[TokenCount] = None
+    num_prompts: Optional[int] = 0
+    is_terminal: Optional[bool] = False
+
+===== FILE: promptimal/dtos/PromptCandidate.py =====
+# Standard library
+from dataclasses import dataclass
+from typing import Optional
+
+@dataclass
+class PromptCandidate:
+    prompt: str
+    fitness: Optional[float] = None
+    reflection: Optional[str] = None
+
+===== FILE: promptimal/dtos/TokenCount.py =====
+# Standard library
+from dataclasses import dataclass
+
+@dataclass
+class TokenCount:
+    input: int
+    output: int
+
+    def __add__(self, other):
+        if not isinstance(other, TokenCount):
+            return NotImplemented
+
+        return TokenCount(self.input + other.input, self.output + other.output)
+
+===== FILE: promptimal/dtos/__init__.py =====
+try:
+    from promptimal.dtos.PromptCandidate import PromptCandidate
+    from promptimal.dtos.ProgressStep import ProgressStep
+    from promptimal.dtos.TokenCount import TokenCount
+except ImportError:
+    from dtos.PromptCandidate import PromptCandidate
+    from dtos.ProgressStep import ProgressStep
+    from dtos.TokenCount import TokenCount
+
+===== FILE: promptimal/optimizer/__init__.py =====
+try:
+    from promptimal.optimizer.main import optimize
+except ImportError:
+    from optimizer.main import optimize
+
+===== FILE: promptimal/optimizer/main.py =====
+# Standard library
+import os
+import time
+import asyncio
+from typing import Optional
+
+# Third party
+from openai import AsyncOpenAI
+
+# Local
+try:
+    from promptimal.optimizer.utils import (
+        crossover,
+        evaluate_fitness,
+        init_population,
+        select_parent,
+    )
+    from promptimal.dtos import ProgressStep, PromptCandidate, TokenCount
+except ImportError:
+    from optimizer.utils import (
+        crossover,
+        evaluate_fitness,
+        init_population,
+        select_parent,
+    )
+    from dtos import ProgressStep, PromptCandidate, TokenCount
+
+async def optimize(
+    prompt: str,  # First version of the prompt
+    improvement_request: Optional[str] = None,  # Description of what to improve
+    population_size: int = 5,  # No. of candidates to generate per iteration
+    num_iters: int = 5,  # Max. no. of population "generations"
+    num_elites: int = 2,  # No. of top candidates to pass onto the next generation
+    threshold: float = 1.0,
+    api_key: str = "",
+    evaluator: Optional[callable] = None,
+):
+    evaluate = evaluate_fitness if not evaluator else evaluator
+    openai = AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY", api_key))
+    start_time = time.time()
+
+    best_candidate = initial_prompt = PromptCandidate(prompt)
+    token_count = TokenCount(0, 0)
+
+    yield ProgressStep(
+        index=0,
+        value=0.125,
+        message="Starting optimization",
+        best_prompt=prompt,
+        token_count=token_count,
+        start_time=start_time,
+    )
+
+    population, _token_count = await init_population(
+        prompt, improvement_request, population_size, openai
+    )
+    token_count += _token_count
+    num_prompts = 0
+
+    yield ProgressStep(
+        index=0,
+        value=0.25,
+        message="Starting optimization",
+        best_prompt=best_candidate.prompt,
+        token_count=token_count,
+        start_time=start_time,
+    )
+
+    tasks = [
+        evaluate(candidate, improvement_request, initial_prompt, openai)
+        for candidate in population
+    ]
+    for index, task in enumerate(asyncio.as_completed(tasks)):
+        candidate, _token_count = await task
+        token_count += _token_count
+        num_prompts += 1
+
+        if candidate.prompt == best_candidate.prompt:
+            best_candidate = candidate
+            initial_prompt = candidate
+
+        yield ProgressStep(
+            index=0,
+            value=0.25 + (0.75 * (index + 1) / len(tasks)),
+            message="Starting optimization",
+            best_prompt=best_candidate.prompt,
+            best_score=best_candidate.fitness,
+            token_count=token_count,
+            num_prompts=num_prompts,
+            start_time=start_time,
+            end_time=time.time() if index == len(tasks) - 1 else None,
+        )
+
+    for index in range(num_iters):
+        start_time = time.time()
+        yield ProgressStep(
+            index=index + 1,
+            value=0.0,
+            message=f"Iteration #{index + 1}/{num_iters}",
+            best_prompt=best_candidate.prompt,
+            best_score=best_candidate.fitness,
+            token_count=token_count,
+            num_prompts=num_prompts,
+            start_time=start_time,
+        )
+
+        # Evaluate fitness of each candidate
+        tasks = [
+            evaluate(candidate, initial_prompt, improvement_request, openai)
+            for candidate in population
+        ]
+        for i, task in enumerate(asyncio.as_completed(tasks)):
+            _, _token_count = await task
+            token_count += _token_count
+            num_prompts += 1 if index > 0 else 0
+
+            yield ProgressStep(
+                index=index + 1,
+                value=0.25 * ((i + 1) / len(tasks)),
+                message=f"Iteration {index + 1}/{num_iters}",
+                best_prompt=best_candidate.prompt,
+                best_score=best_candidate.fitness,
+                token_count=token_count,
+                num_prompts=num_prompts,
+                start_time=start_time,
+            )
+
+        # Sort population by fitness
+        population.sort(key=lambda candidate: candidate.fitness, reverse=True)
+
+        # Update the best individual
+        generation_best = population[0]
+        if (
+            not best_candidate.fitness
+            or generation_best.fitness > best_candidate.fitness
+        ):
+            best_candidate = generation_best
+
+        # Terminate if a candidate meets the fitness threshold
+        if best_candidate.fitness >= threshold:
+            yield ProgressStep(
+                index=index + 1,
+                value=1.0,
+                message=f"Iteration {index + 1}/{num_iters}",
+                best_prompt=best_candidate.prompt,
+                best_score=best_candidate.fitness,
+                token_count=token_count,
+                num_prompts=num_prompts,
+                start_time=start_time,
+                end_time=time.time(),
+            )
+            break
+
+        # Generate the new population
+        mates = (
+            (select_parent(population), select_parent(population))
+            for _ in range(population_size - num_elites)
+        )
+        tasks = [
+            crossover(
+                *parents,
+                initial_prompt=prompt,
+                improvement_request=improvement_request,
+                openai=openai,
+            )
+            for parents in mates
+        ]
+        children = []
+        for i, task in enumerate(asyncio.as_completed(tasks)):
+            child, _token_count = await task
+            token_count += _token_count
+
+            yield ProgressStep(
+                index=index + 1,
+                value=0.25 + ((i + 1) / len(tasks)) * 0.75,
+                message=f"Iteration {index + 1}/{num_iters}",
+                best_prompt=best_candidate.prompt,
+                best_score=best_candidate.fitness,
+                token_count=token_count,
+                num_prompts=num_prompts,
+                start_time=start_time,
+                end_time=time.time() if i == len(tasks) - 1 else None,
+            )
+            children.append(child)
+
+        population = population[:num_elites] + children
+
+    yield ProgressStep(
+        index=index + 2,
+        message="Optimization complete! 🧬",
+        best_prompt=best_candidate.prompt,
+        best_score=best_candidate.fitness,
+        token_count=token_count,
+        num_prompts=num_prompts,
+        is_terminal=True,
+    )
+
+===== FILE: promptimal/optimizer/prompts.py =====
+# Prompts inspired by https://github.com/hinthornw/promptimizer and the PromptBreeder paper
+
+INIT_POPULATION_PROMPT = """You are an expert AI prompt engineer. You will be given a prompt and your job is to come up with {population_size} better prompts. The user wants to improve the following about the given prompt:
+
+<improvement_request>
+{improvement_request}
+</improvement_request>
+
+Each prompt you generate should employ a different strategy to improve the initial prompt.
+
+Use prompting strategies that are appropriate for the task. For logic and math, encourage more chain-of-thought reasoning, or include reasoning trajectories to induce better performance. For creative tasks, consider adding style guidelines. Or consider including examples.
+
+Your improved prompts must:
+- Keep all original input variables.
+- Maintain any special formatting or delimiters.
+- Be clear and concise. 
+- Do NOT use complicated language or jargon.
+- Avoid repeating mistakes.
+
+You MUST generate {population_size} prompts that are better than the provided prompt."""
+
+CROSSOVER_PROMPT = """You are an expert AI prompt engineer tasked with improving the following prompt:
+
+<initial_prompt>
+{initial_prompt}
+</initial_prompt>
+
+The user would like to improve the following about the prompt:
+
+<improvement_request>
+{improvement_request}
+</improvement_request>
+
+Using this information above, your job is to generate a better prompt by combining elements from two prompts that are known to be successful.
+
+The goal is to create a prompt that is better than either of the original prompts, while still staying true to the intent of the initial prompt and the improvement request.
+
+In your head, plan the optimization step-by-step:
+1. Analyze the two prompts and where they fall short.
+2. Identify patterns in the prompts that are more or less likely to be successful.
+3. Propose specific improvements to address the shortcomings.
+4. Generate an improved prompt that maintains all required formatting.
+
+The improved prompt must:
+- Keep all original input variables.
+- Maintain any special formatting or delimiters.
+- Be clear and concise. 
+- Do NOT use complicated language or jargon.
+- Avoid repeating mistakes.
+- Combine the best elements of both prompts.
+
+Output both your step-by-step analysis and the improved prompt."""
+
+EVAL_PROMPT = """You are an expert AI prompt engineer tasked with improving the following prompt:
+
+<initial_prompt>
+{initial_prompt}
+</initial_prompt>
+
+The user would like to improve the following about the prompt:
+
+<improvement_request>
+{improvement_request}
+</improvement_request>
+
+Using this information above, your job is to evaluate a potentially improved prompt given to you.
+
+You should grade the prompt in the following categories:
+- **Clarity:** Precisely defines the task with unambiguous language.
+- **Context:** Provides essential background and purpose of the request.
+- **Specificity:** Outlines exact requirements, expected format, and constraints.
+- **Guidance:** Breaks complex tasks into clear, sequential steps.
+- **Examples:** Includes concrete samples of desired input/output.
+- **Role Definition:** Specifies the persona or perspective to adopt.
+- **Boundaries:** Sets clear limitations and ethical guidelines.
+- **Reasoning:** Requests explanation of logic and self-validation.
+- **Flexibility:** Allows space for creative interpretation.
+- **Structure:** Defines preferred output format and presentation.
+
+Your final evaluation should be a score between 1 and 10, with 10 being the highest."""
+
+===== FILE: promptimal/optimizer/utils.py =====
+# Standard library
+import json
+import random
+from statistics import mean
+from typing import List, Tuple
+
+# Third party
+import json_repair
+from openai import AsyncOpenAI
+
+# Local
+try:
+    from promptimal.dtos import PromptCandidate, TokenCount
+    from promptimal.optimizer.prompts import (
+        INIT_POPULATION_PROMPT,
+        EVAL_PROMPT,
+        CROSSOVER_PROMPT,
+    )
+except ImportError:
+    from dtos import PromptCandidate, TokenCount
+    from optimizer.prompts import (
+        INIT_POPULATION_PROMPT,
+        EVAL_PROMPT,
+        CROSSOVER_PROMPT,
+    )
+
+async def init_population(
+    prompt: str, improvement_request: str, population_size: int, openai: AsyncOpenAI
+) -> Tuple[List[PromptCandidate], TokenCount]:
+    """
+    Initializes a population of candidate prompts.
+    """
+
+    system_message = {
+        "role": "system",
+        "content": INIT_POPULATION_PROMPT.format(
+            population_size=population_size, improvement_request=improvement_request
+        ),
+    }
+    user_message = {
+        "role": "user",
+        "content": f"Generate {population_size} better versions of the following prompt:\n\n<prompt>\n{prompt}\n</prompt>",
+    }
+    response = await openai.chat.completions.create(
+        messages=[system_message, user_message],
+        model="gpt-4o",
+        temperature=1.0,
+        response_format={
+            "type": "json_schema",
+            "json_schema": {
+                "name": "better_prompts",
+                "strict": True,
+                "schema": {
+                    "type": "object",
+                    "properties": {
+                        "prompts": {
+                            "type": "array",
+                            "items": {
+                                "type": "string",
+                                "description": "A better version of the provided prompt.",
+                            },
+                            "description": f"A list of {population_size} prompts that are better versions of the provided prompt.",
+                        }
+                    },
+                    "required": ["prompts"],
+                    "additionalProperties": False,
+                },
+            },
+        },
+    )
+    output = json_repair.loads(response.choices[0].message.content)
+    population = [PromptCandidate(prompt) for prompt in output["prompts"]]
+    population = [PromptCandidate(prompt)] + population  # Add initial prompt
+
+    return population, TokenCount(
+        response.usage.prompt_tokens, response.usage.completion_tokens
+    )
+
+async def evaluate_fitness(
+    candidate: PromptCandidate,
+    initial_prompt: PromptCandidate,
+    improvement_request: str,
+    openai: AsyncOpenAI,
+    num_samples=5,
+) -> Tuple[PromptCandidate, TokenCount]:
+    """
+    Evaluates a prompt candidate using a LLM + self-consistency.
+    """
+
+    # Elite, already evaluated from the previous generation
+    if candidate.fitness:
+        return candidate, TokenCount(0, 0)
+
+    # Generate `n_samples` self-evaluations
+    response = await openai.chat.completions.create(
+        messages=[
+            {
+                "role": "system",
+                "content": EVAL_PROMPT.format(
+                    initial_prompt=initial_prompt,
+                    improvement_request=improvement_request,
+                ),
+            },
+            # {"role": "user", "content": initial_prompt.prompt},
+            # {
+            #     "role": "assistant",
+            #     "content": json.dumps(
+            #         {
+            #             "evaluation": initial_prompt.reflection,
+            #             "score": initial_prompt.fitness,
+            #         }
+            #     ),
+            # },
+            {
+                "role": "user",
+                "content": f"Evaluate the following prompt:\n\n<prompt>\n{candidate.prompt}\n</prompt>",
+            },
+        ],
+        model="gpt-4o",
+        temperature=1.0,
+        response_format={
+            "type": "json_schema",
+            "json_schema": {
+                "name": "evaluation",
+                "strict": True,
+                "schema": {
+                    "type": "object",
+                    "properties": {
+                        "evaluation": {
+                            "type": "string",
+                            "description": "Justification for your score.",
+                        },
+                        "score": {
+                            "type": "number",
+                            "description": "A score between 1-10 for the prompt, with 10 being the highest.",
+                        },
+                    },
+                    "required": ["evaluation", "score"],
+                    "additionalProperties": False,
+                },
+            },
+        },
+        n=num_samples,
+    )
+    outputs = (choice.message.content for choice in response.choices)
+    outputs = [json_repair.loads(output) for output in outputs]
+
+    # Consolidate results
+    candidate.fitness = mean(output["score"] for output in outputs) / 10
+    candidate.reflection = outputs[0]["evaluation"]  # 1st evaluation is best
+
+    return candidate, TokenCount(
+        response.usage.prompt_tokens, response.usage.completion_tokens
+    )
+
+def select_parent(
+    population: List[PromptCandidate], tournament_size=3
+) -> PromptCandidate:
+    tournament = random.sample(population, tournament_size)
+    return max(tournament, key=lambda candidate: candidate.fitness)
+
+async def crossover(
+    parent1: PromptCandidate,
+    parent2: PromptCandidate,
+    initial_prompt: str,
+    improvement_request: str,
+    openai: AsyncOpenAI,
+) -> Tuple[PromptCandidate, TokenCount]:
+    system_message = {
+        "role": "system",
+        "content": CROSSOVER_PROMPT.format(
+            initial_prompt=initial_prompt, improvement_request=improvement_request
+        ),
+    }
+    user_message = {
+        "role": "user",
+        "content": f"Combine the following prompts into a better one:\n\n<prompt_1>\n{parent1.prompt}\n</prompt_1>\n\n<prompt_2>\n{parent2.prompt}\n</prompt_2>",
+    }
+    response = await openai.chat.completions.create(
+        messages=[system_message, user_message],
+        model="gpt-4o",
+        temperature=1.0,
+        response_format={
+            "type": "json_schema",
+            "json_schema": {
+                "name": "prompt_crossover_response",
+                "strict": True,
+                "schema": {
+                    "type": "object",
+                    "properties": {
+                        "analysis": {
+                            "type": "string",
+                            "description": "Your step-by-step analysis of the two prompts.",
+                        },
+                        "prompt": {
+                            "type": "string",
+                            "description": "The combined and improved prompt.",
+                        },
+                    },
+                    "required": ["analysis", "prompt"],
+                    "additionalProperties": False,
+                },
+            },
+        },
+    )
+    output = json_repair.loads(response.choices[0].message.content)
+
+    return PromptCandidate(output["prompt"]), TokenCount(
+        response.usage.prompt_tokens, response.usage.completion_tokens
+    )
+
+===== FILE: promptimal/promptimal.py =====
+# Standard library
+import os
+import argparse
+import subprocess
+from typing import Optional, Tuple
+
+# Local
+try:
+    from promptimal.app import App
+    from promptimal.dtos import PromptCandidate, TokenCount
+except ImportError:
+    from app import App
+    from dtos import PromptCandidate, TokenCount
+
+#########
+# HELPERS
+#########
+
+def generate_evaluator(evaluator_path: Optional[str]) -> Optional[callable]:
+    if not evaluator_path:
+        return None
+
+    async def evaluator(
+        candidate: PromptCandidate, *args
+    ) -> Tuple[PromptCandidate, TokenCount]:
+        if candidate.fitness != None:
+            return candidate, TokenCount(0, 0)
+
+        result = subprocess.run(
+            ["python", evaluator_path, "--prompt", candidate.prompt],
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+        candidate.fitness = float(result.stdout.strip())
+        return candidate, TokenCount(0, 0)
+
+    return evaluator
+
+######
+# MAIN
+######
+
+def main():
+    parser = argparse.ArgumentParser(
+        description="Optimize your prompts using a genetic algorithm."
+    )
+    parser.add_argument(
+        "--prompt",
+        default="",
+        required=False,
+        type=str,
+        help="Initial prompt to optimize.",
+    )
+    parser.add_argument(
+        "--improve",
+        default="",
+        required=False,
+        type=str,
+        help="Description of what you want to improve about the prompt.",
+    )
+    parser.add_argument(
+        "--num_iters",
+        default=5,
+        required=False,
+        type=int,
+        help="Number of iterations to run the optimization loop for.",
+    )
+    parser.add_argument(
+        "--num_samples",
+        default=10,
+        required=False,
+        type=int,
+        help="Number of prompts to generate in each iteration.",
+    )
+    parser.add_argument(
+        "--threshold",
+        default=1.0,
+        required=False,
+        type=float,
+        help="Score threshold to stop the optimization loop.",
+    )
+    parser.add_argument(
+        "--openai_api_key",
+        default="",
+        required=False,
+        type=str,
+        help="OpenAI API key.",
+    )
+    parser.add_argument(
+        "--evaluator",
+        default="",
+        required=False,
+        type=str,
+        help="Path to your custom evaluator script.",
+    )
+    args = parser.parse_args()
+
+    if not os.getenv("OPENAI_API_KEY", None) or args.openai_api_key:
+        print("\033[1;31mOpenAI API key not found.\033[0m")
+        return
+
+    init_prompt = (
+        input("\033[1;90mInitial prompt (use \\n for newlines):\033[0m\n\n")
+        if not args.prompt
+        else args.prompt
+    ).replace("\\n", "\n")
+    improvement_request = (
+        input("\n\033[1;90mWhat do you want to improve:\033[0m\n\n")
+        if not args.improve
+        else args.improve
+    ).replace("\\n", "\n")
+
+    app = App(init_prompt)
+    optimized_prompt, is_finished = app.start(
+        improvement_request=improvement_request,
+        num_iters=args.num_iters,
+        population_size=args.num_samples,
+        threshold=args.threshold,
+        api_key=args.openai_api_key,
+        evaluator=generate_evaluator(args.evaluator),
+    )
+
+    if args.prompt:
+        print(f"\033[1;90mInitial prompt:\033[0m\n\n{init_prompt}")
+    if args.improve:
+        print(
+            f"\n\033[1;90mWhat do you want to improve:\033[0m\n\n{improvement_request}"
+        )
+    if is_finished:
+        print(
+            f"\n🧬 \033[1;35mOPTIMIZED PROMPT\033[0m 🧬\n\n\033[35m{optimized_prompt}\033[0m"
+        )
+    else:
+        print(f"\n\033[1;31mOptimization loop terminated.\033[0m")

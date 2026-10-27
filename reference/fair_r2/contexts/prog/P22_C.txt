@@ -1,0 +1,92 @@
+【任务书】
+Bug report in pyproject-hooks `norm_and_check`:
+Absolute backend paths are incorrectly accepted (or relative ones rejected). `norm_and_check(source_tree, requested)` must raise `ValueError` mentioning `relative` when `requested` is an absolute path, and must accept a relative path that resolves inside the source tree.
+Fix `norm_and_check` in `src/pyproject_hooks/_impl.py`. Do not touch tests/.
+
+# MECHANICAL INDEX (auto; not a solution ledger)
+src/pyproject_hooks/_impl.py:118  def norm_and_check(source_tree: str, requested: str) -> str:
+src/pyproject_hooks/_impl.py:39  class BuildBackendWarning(UserWarning):
+src/pyproject_hooks/_impl.py:43  class BackendUnavailable(Exception):
+src/pyproject_hooks/_impl.py:139  class BuildBackendHookCaller:
+src/pyproject_hooks/_impl.py:220  def prepare_metadata_for_build_wheel(
+src/pyproject_hooks/_impl.py:303  def prepare_metadata_for_build_editable(
+src/pyproject_hooks/_impl.py:29  def write_json(obj: Mapping[str, Any], path: str, **kwargs) -> None:
+src/pyproject_hooks/_impl.py:34  def read_json(path: str) -> Mapping[str, Any]:
+src/pyproject_hooks/_impl.py:17  class SubprocessRunner(Protocol):
+src/pyproject_hooks/_impl.py:20  def __call__(
+src/pyproject_hooks/_impl.py:46  def __init__(
+src/pyproject_hooks/_impl.py:63  class HookMissing(Exception):
+src/pyproject_hooks/_impl.py:66  def __init__(self, hook_name: str) -> None:
+src/pyproject_hooks/_impl.py:71  class UnsupportedOperation(Exception):
+src/pyproject_hooks/_impl.py:74  def __init__(self, traceback: str) -> None:
+src/pyproject_hooks/_impl.py:78  def default_subprocess_runner(
+src/pyproject_hooks/_impl.py:94  def quiet_subprocess_runner(
+src/pyproject_hooks/_impl.py:142  def __init__(
+# README head
+``pyproject-hooks``
+===================
+
+This is a low-level library for calling build-backends in ``pyproject.toml``-based project. It provides the basic functionality to help write tooling that generates distribution files from Python projects.
+
+If you want a tool that builds Python packages, you'll want to use https://github.com/pypa/build instead. This is an underlying piece for `pip`, `build` and other "build frontends" use to call "build backends" within them.
+
+You can read more in the `do
+
+# AUTO FILE WINDOW: src/pyproject_hooks/_impl.py (slice)
+# slice around L118 (file has 15807 chars; truncated)
+) -> None:
+    """Call the subprocess while suppressing output.
+
+    This uses :func:`subprocess.run` with `stdout=PIPE, stderr=STDOUT` under the hood.
+    """
+    env = os.environ.copy()
+    if extra_environ:
+        env.update(extra_environ)
+
+    # Capturing output in case it fails (available on the exception object)
+    subprocess.run(
+        cmd,
+        cwd=cwd,
+        env=env,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        check=True,
+    )
+
+def norm_and_check(source_tree: str, requested: str) -> str:
+    """Normalise and check a backend path.
+
+    Ensure that the requested backend path is specified as a relative path,
+    and resolves to a location under the given source tree.
+
+    Return an absolute version of the requested path.
+    """
+    if not os.path.isabs(requested):
+        raise ValueError("paths must be relative")  # BUG: inverted isabs
+
+    abs_source = os.path.abspath(source_tree)
+    abs_requested = os.path.normpath(os.path.join(abs_source, requested))
+    norm_source = os.path.normcase(abs_source)
+    norm_requested = os.path.normcase(abs_requested)
+    if os.path.commonpath([norm_source, norm_requested]) != norm_source:
+        raise ValueError("paths must be inside source tree")
+
+    return abs_requested
+
+class BuildBackendHookCaller:
+    """A wrapper to call the build backend hooks for a source directory."""
+
+    def __init__(
+        self,
+        source_dir: str,
+        build_backend: str,
+        backend_path: Optional[Sequence[str]] = None,
+        runner: Optional["SubprocessRunner"] = None,
+        python_executable: Optional[str] = None,
+    ) -> None:
+        """
+        :param source_dir: The source directory to invoke the build backend for
+        :param build_backend: The build backend spec
+        :param backend_path: Additional path entries for the build backend spec
+        :param runner: The :ref:`subprocess runner <Subprocess Runners>` to use
+        :param python_executable:

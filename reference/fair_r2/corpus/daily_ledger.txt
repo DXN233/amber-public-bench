@@ -1,0 +1,50 @@
+FACT|price_db_count|价格库一共入库 145 条|enterprise|2026-09-01
+FACT|plus_monthly|Plus会员月费 ¥29|billing|2026-08-12
+FACT|jiangwan_recon|江湾对账成功率 95.5%（107/112）|ops|2026-09-18
+FACT|tea_north_star|茶企北极星指标：流水同比|product|2026-07-03
+FACT|office_city|办公城市：深圳南山|profile|2026-06-01
+FACT|pref_lang|用户偏好：技术答复用简体中文，代码注释英文|pref|2026-06-02
+FACT|pref_tone|用户偏好：拒绝对未覆盖事实瞎猜，应答「无法定位」|pref|2026-06-02
+FACT|tz|时区约定：Asia/Shanghai (UTC+8)|pref|2026-06-01
+FACT|deploy_host|公测网关主机名 shenzhenbeichenhuizhi.site|ops|2026-10-17
+FACT|tenant_smoke|测试租户 id=smoke-grok-20261025（key 仅末4公开）|ops|2026-10-25
+FACT|window_span_verify|开工约定 WINDOW_SPAN_VERIFY=1600|eng|2026-10-20
+FACT|window_fallback|开工约定 WINDOW_FALLBACK_HEAD=800|eng|2026-10-20
+FACT|honest_mark|HONEST_EXIT_MARK=无法定位|eng|2026-10-20
+FACT|resident_max|RESIDENT_MAX_CHARS=4000|eng|2026-10-20
+FACT|meeting_weekday|周会固定周二 10:00 Asia/Shanghai|calendar|2026-05-10
+FACT|budget_daily|日预算软上限：上游 completion 不计入营销口径；对照看 prompt|billing|2026-10-01
+FACT|repo_policy|编程默认：账本优先于源码种植错误值|eng|2026-10-21
+FACT|contact_alias|对外署名：Micheng Shen（论文）；产品称呼纳西妲|profile|2026-10-24
+FACT|ci_runner|CI 默认 runner 标签：linux-x64-selfhost|eng|2026-09-09
+FACT|db_primary|主库别名 amber_ledger_v3|eng|2026-08-28
+FACT|sla_p95|点查 P95 目标 < 800ms（本地）|ops|2026-09-01
+FACT|model_default|默认上游模型请求名 deepseek-chat|ops|2026-10-01
+FACT|gap_flag|AMBER_GAP_V1_V2 默认开启；关=0|ops|2026-10-26
+FACT|tea_sku_count|茶企 SKU 在册 38 个|product|2026-07-04
+FACT|recon_owner|对账负责人花名：青禾|ops|2026-09-18
+FACT|pref_no_emoji|用户偏好：正式报告不要 emoji|pref|2026-06-03
+FACT|ship_addr_city|收货城市：上海|profile|2026-04-02
+FACT|vpn_profile|办公 VPN 配置名 amber-office-a|ops|2026-05-20
+FACT|backup_cron|账本备份 cron：每天 03:15 Asia/Shanghai|ops|2026-06-15
+FACT|alert_channel|告警频道：#amber-ops|ops|2026-06-16
+FACT|lint_rule|LEDGER 索引值行 append-only，禁止改写|eng|2026-10-20
+FACT|test_cmd|本机验收命令：pytest -q harness|eng|2026-10-22
+FACT|color_theme|青青桌面主题色约定：竹青 #2F6F4E|product|2026-10-26
+FACT|nap_default|小憩默认 25 分钟|product|2026-10-26
+FACT|focus_block|专注块默认 50 分钟|product|2026-10-26
+FACT|privacy_bucket|私密桶前缀 private/ 不进 Today 聚合|product|2026-10-26
+FACT|review_gate|待审确认门：外发前必须 human_confirm=true|product|2026-10-26
+FACT|arxiv_alias|arXiv 显示名 Micheng Shen / nahida123|profile|2026-10-24
+FACT|max_tokens_bench|公开对照 max_tokens=400 temperature=0|eng|2026-10-27
+FACT|plain_arm|对照臂 A_plain=无记忆注入|eng|2026-10-27
+FACT|full_arm|对照臂 B_fullctx=全文账本/全文仓|eng|2026-10-27
+FACT|amber_arm|对照臂 C_amber=检索注入/窄窗|eng|2026-10-27
+FACT|sku_top|茶企爆款 SKU：龙井礼盒-A|product|2026-07-05
+FACT|error_budget|月错误预算 0.5%|ops|2026-08-01
+FACT|oncall|本周 oncall：青禾|ops|2026-10-20
+FACT|doc_root|内部文档根：docs/USAGE-TRACKS.md|eng|2026-09-15
+FACT|sample_passphrase_hint|示例口令提示词仅存 vault，不进账本正文|security|2026-10-01
+FACT|forbidden_guess|禁止对未入库价格/成功率做数值猜测|pref|2026-06-02
+FACT|lit_judge|科研判据：优先引用 DOI/arXiv id|research|2026-09-20
+FACT|mem_cap|常驻层注入上限 4000 字符|eng|2026-10-20

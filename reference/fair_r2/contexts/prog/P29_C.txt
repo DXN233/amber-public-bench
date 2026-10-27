@@ -1,0 +1,19 @@
+# AMBER 本轮注入（模拟窄窗）
+
+## RESIDENT
+- HONEST_EXIT_MARK常数：engine/constants.py：HONEST_EXIT_MARK=无法定位；诚实出口标记
+- honest_exit.cannot_locate：engine/honest_exit.py：cannot_locate(question, tier) 返回 answer=无法定位 且 honest=True
+- honest_exit.wrap：engine/honest_exit.py：wrap(answer, tier, anchor, honest=True) 包装标准返回
+
+## LEDGER（命中）
+| 锚点 | 精确窗口 | 索引值（事发冻结） | 证据类型 | scope |
+|---|---|---|---|---|
+| HONEST_EXIT_MARK常数@workbench | engine/constants.py:行11-行11 | engine/constants.py：HONEST_EXIT_MARK=无法定位；诚实出口标记 | state | amber-engine |
+| honest_exit.cannot_locate@workbench | engine/honest_exit.py:行4-行4 | engine/honest_exit.py：cannot_locate(question, tier) 返回 answer=无法定位 且 honest=True | state | amber-engine |
+| honest_exit.wrap@workbench | engine/honest_exit.py:行14-行14 | engine/honest_exit.py：wrap(answer, tier, anchor, honest=True) 包装标准返回 | state | amber-engine |
+
+## 源码锚点（窄）
+```
+# engine/honest_exit.py 现有 API：cannot_locate / wrap；尚无 is_cannot_locate
+# 约定：无法定位 → answer="无法定位", honest=True
+```

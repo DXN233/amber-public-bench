@@ -1,0 +1,68 @@
+【任务书】
+Bug report in zipp `_functools.none_as`:
+`none_as(None, 'foo')` is returning the wrong value — it seems inverted (None is kept / non-None is replaced). Correct behavior: `none_as(None, replacement) -> replacement`, and `none_as(value, replacement) -> value` when value is not None.
+Fix `none_as` in `zipp/_functools.py`. Do not touch tests/.
+
+# MECHANICAL INDEX (auto; not a solution ledger)
+zipp/_functools.py:24  def none_as(value, replacement=None):
+zipp/_functools.py:6  def save_method_args(method):
+zipp/_functools.py:14  def wrapper(self, /, *args, **kwargs):
+zipp/__init__.py:193  def _extract_text_encoding(encoding=None, *args, **kwargs):
+zipp/__init__.py:328  def open(self, mode='r', *args, pwd=None, **kwargs):
+zipp/__init__.py:25  def _parents(path):
+zipp/__init__.py:44  def _ancestry(path):
+zipp/__init__.py:75  def _difference(minuend, subtrahend):
+zipp/__init__.py:83  class InitializedState:
+zipp/__init__.py:89  def __init__(self, *args, **kwargs):
+zipp/__init__.py:92  def __getstate__(self):
+zipp/__init__.py:95  def __setstate__(self, state):
+zipp/__init__.py:100  class CompleteDirs(InitializedState, zipfile.ZipFile):
+zipp/__init__.py:112  def _implied_dirs(names):
+zipp/__init__.py:117  def namelist(self):
+zipp/__init__.py:121  def _name_set(self):
+zipp/__init__.py:124  def resolve_dir(self, name):
+zipp/__init__.py:134  def getinfo(self, name):
+# README head
+.. image:: https://img.shields.io/pypi/v/zipp.svg
+   :target: https://pypi.org/project/zipp
+
+.. image:: https://img.shields.io/pypi/pyversions/zipp.svg
+
+.. image:: https://github.com/jaraco/zipp/actions/workflows/main.yml/badge.svg
+   :target: https://github.com/jaraco/zipp/actions?query=workflow%3A%22tests%22
+   :alt: tests
+
+.. image:: https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json
+    :target: https://github.com/astral-sh/ruff
+   
+
+# AUTO FILE WINDOW: zipp/_functools.py (full_small)
+import collections
+import functools
+
+# from jaraco.functools 4.0.2
+def save_method_args(method):
+    """
+    Wrap a method such that when it is called, the args and kwargs are
+    saved on the method.
+    """
+    args_and_kwargs = collections.namedtuple('args_and_kwargs', 'args kwargs')  # noqa: PYI024
+
+    @functools.wraps(method)
+    def wrapper(self, /, *args, **kwargs):
+        attr_name = '_saved_' + method.__name__
+        attr = args_and_kwargs(args, kwargs)
+        setattr(self, attr_name, attr)
+        return method(self, *args, **kwargs)
+
+    return wrapper
+
+# from jaraco.functools 4.3
+def none_as(value, replacement=None):
+    """
+    >>> none_as(None, 'foo')
+    'foo'
+    >>> none_as('bar', 'foo')
+    'bar'
+    """
+    return value if value is None else replacement  # BUG: inverted

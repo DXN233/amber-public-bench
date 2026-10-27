@@ -1,0 +1,102 @@
+【任务书】
+Bug report in blinker Symbol:
+`repr(Symbol('foo'))` currently returns something like `Symbol('foo')` (or otherwise wrapped), but it must return the bare name `foo` (doctest expects `Symbol('foo')` to display as `foo`).
+Fix `Symbol.__repr__` in `src/blinker/_utilities.py`. Identity/`__new__` caching must keep working. Do not touch tests/.
+
+# MECHANICAL INDEX (auto; not a solution ledger)
+src/blinker/_utilities.py:35  def __repr__(self) -> str:
+src/blinker/_utilities.py:24  def __new__(cls, name: str) -> Symbol:
+src/blinker/_utilities.py:12  class Symbol:
+src/blinker/_utilities.py:32  def __init__(self, name: str) -> None:
+src/blinker/_utilities.py:38  def __getnewargs__(self) -> tuple[t.Any, ...]:
+src/blinker/_utilities.py:42  def make_id(obj: object) -> c.Hashable:
+src/blinker/_utilities.py:60  def make_ref(obj: T, callback: c.Callable[[ref[T]], None] | None = None) -> ref[T]:
+src/blinker/base.py:478  def __repr__(self) -> str:
+src/blinker/base.py:464  class NamedSignal(Signal):
+src/blinker/base.py:483  class Namespace(dict[str, NamedSignal]):
+src/blinker/base.py:499  class _PNamespaceSignal(t.Protocol):
+src/blinker/base.py:18  ANY = Symbol("ANY")
+src/blinker/base.py:472  def __init__(self, name: str, doc: str | None = None) -> None:
+src/blinker/base.py:486  def signal(self, name: str, doc: str | None = None) -> NamedSignal:
+src/blinker/base.py:500  def __call__(self, name: str, doc: str | None = None) -> NamedSignal: ...
+src/blinker/base.py:21  ANY_ID = 0
+src/blinker/base.py:24  class Signal:
+src/blinker/base.py:30  ANY = ANY
+# README head
+# Blinker
+
+Blinker provides a fast dispatching system that allows any number of
+interested parties to subscribe to events, or "signals".
+
+## Pallets Community Ecosystem
+
+> [!IMPORTANT]\
+> This project is part of the Pallets Community Ecosystem. Pallets is the open
+> source organization that maintains Flask; Pallets-Eco enables community
+> maintenance of related projects. If you are interested in helping maintain
+> this project, please reach out on [the Pallets Discord server][discord].
+>
+> [dis
+
+# AUTO FILE WINDOW: src/blinker/_utilities.py (full_small)
+from __future__ import annotations
+
+import collections.abc as c
+import inspect
+import typing as t
+from weakref import ref
+from weakref import WeakMethod
+
+T = t.TypeVar("T")
+
+class Symbol:
+    """A constant symbol, nicer than ``object()``. Repeated calls return the
+    same instance.
+
+    >>> Symbol('foo') is Symbol('foo')
+    True
+    >>> Symbol('foo')
+    foo
+    """
+
+    symbols: t.ClassVar[dict[str, Symbol]] = {}
+
+    def __new__(cls, name: str) -> Symbol:
+        if name in cls.symbols:
+            return cls.symbols[name]
+
+        obj = super().__new__(cls)
+        cls.symbols[name] = obj
+        return obj
+
+    def __init__(self, name: str) -> None:
+        self.name = name
+
+    def __repr__(self) -> str:
+        return f"Symbol({self.name!r})"  # BUG: wrapped
+
+    def __getnewargs__(self) -> tuple[t.Any, ...]:
+        return (self.name,)
+
+def make_id(obj: object) -> c.Hashable:
+    """Get a stable identifier for a receiver or sender, to be used as a dict
+    key or in a set.
+    """
+    if inspect.ismethod(obj):
+        # The id of a bound method is not stable, but the id of the unbound
+        # function and instance are.
+        return id(obj.__func__), id(obj.__self__)
+
+    if isinstance(obj, (str, int)):
+        # Instances with the same value always compare equal and have the same
+        # hash, even if the id may change.
+        return obj
+
+    # Assume other types are not hashable but will always be the same instance.
+    return id(obj)
+
+def make_ref(obj: T, callback: c.Callable[[ref[T]], None] | None = None) -> ref[T]:
+    if inspect.ismethod(obj):
+        return WeakMethod(obj, callback)  # type: ignore[arg-type, return-value]
+
+    return ref(obj, callback)

@@ -1,0 +1,13 @@
+{
+  "daily_ledger_chars": 2822,
+  "daily_ledger_lines": 50,
+  "daily_noise_lines": 0,
+  "daily_hist_lines": 0,
+  "lit_full_chars": 5388,
+  "n_daily": 50,
+  "n_prog": 30,
+  "n_lit": 20,
+  "fairness_actions": 11,
+  "remaining_issues": [],
+  "method_id": "amber-public-bench-20261027-r2-fair"
+}

@@ -1,0 +1,4 @@
+FACT|item_count|库存一共 12 件|ops|2026-01-01
+FACT|office_city|办公城市：示例市|profile|2026-01-01
+FACT|pref_lang|用户偏好：简体中文|pref|2026-01-01
+FACT|unknown_policy|未覆盖事实应答「无法定位」|pref|2026-01-01

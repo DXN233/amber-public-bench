@@ -1,0 +1,3 @@
+# This bench uses Python 3.10+ standard library only
+# (urllib, json, pathlib, concurrent.futures, statistics, argparse, re, threading).
+# No third-party packages required to run or summarize.

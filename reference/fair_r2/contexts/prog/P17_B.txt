@@ -1,0 +1,1058 @@
+【任务书】
+Follow-up feature (builds on Contains ALL-values fix):
+Add a helper `none_missing(container, *values)` in `dirty_equals/_utils.py` that returns True iff every value in `values` is present in `container` (using `in`), else False.
+Place it near `get_dict_arg` / `plain_repr`. Do not break existing utils. Do not touch tests/.
+
+# ===== FILE: .pytest_cache/README.md =====
+# pytest cache directory #
+
+This directory contains data from the pytest's cache plugin,
+which provides the `--lf` and `--ff` options, as well as the `cache` fixture.
+
+**Do not** commit this to version control.
+
+See [the docs](https://docs.pytest.org/en/stable/how-to/cache.html) for more information.
+
+# ===== FILE: README.md =====
+<p align="center">
+  <a href="https://dirty-equals.helpmanual.io">
+    <img src="https://dirty-equals.helpmanual.io/latest/img/logo-text.svg" alt="dirty-equals">
+  </a>
+</p>
+<p align="center">
+  <em>Doing dirty (but extremely useful) things with equals.</em>
+</p>
+<p align="center">
+  <a href="https://github.com/samuelcolvin/dirty-equals/actions/workflows/ci.yml?query=event%3Apush+branch%3Amain+workflow%3ACI"><img src="https://github.com/samuelcolvin/dirty-equals/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+  <a href="https://codecov.io/gh/samuelcolvin/dirty-equals"><img src="https://codecov.io/gh/samuelcolvin/dirty-equals/branch/main/graph/badge.svg" alt="Coverage"></a>
+  <a href="https://pypi.python.org/pypi/dirty-equals"><img src="https://img.shields.io/pypi/v/dirty-equals.svg" alt="pypi"></a>
+  <a href="https://github.com/samuelcolvin/dirty-equals"><img src="https://img.shields.io/pypi/pyversions/dirty-equals.svg" alt="versions"></a>
+  <a href="https://github.com/samuelcolvin/dirty-equals/blob/main/LICENSE"><img src="https://img.shields.io/github/license/samuelcolvin/dirty-equals.svg" alt="license"></a>
+</p>
+
+---
+
+**Documentation**: [dirty-equals.helpmanual.io](https://dirty-equals.helpmanual.io)
+
+**Source Code**: [github.com/samuelcolvin/dirty-equals](https://github.com/samuelcolvin/dirty-equals)
+
+---
+
+**dirty-equals** is a python library that (mis)uses the `__eq__` method to make python code (generally unit tests)
+more declarative and therefore easier to read and write.
+
+*dirty-equals* can be used in whatever context you like, but it comes into its own when writing unit tests for
+applications where you're commonly checking the response to API calls and the contents of a database.
+
+## Usage
+
+Here's a trivial example of what *dirty-equals* can do:
+
+```py
+from dirty_equals import IsPositive
+
+assert 1 == IsPositive
+assert -2 == IsPositive  # this will fail!
+```
+
+**That doesn't look very useful yet!**, but consider the following unit test code using *dirty-equals*:
+
+```py title="More Powerful Usage"
+from dirty_equals import IsJson, IsNow, IsPositiveInt, IsStr
+
+...
+
+# user_data is a dict returned from a database or API which we want to test
+assert user_data == {
+    # we want to check that id is a positive int
+    'id': IsPositiveInt,
+    # we know avatar_file should be a string, but we need a regex as we don't know whole value
+    'avatar_file': IsStr(regex=r'/[a-z0-9\-]{10}/example\.png'),
+    # settings_json is JSON, but it's more robust to compare the value it encodes, not strings
+    'settings_json': IsJson({'theme': 'dark', 'language': 'en'}),
+    # created_ts is datetime, we don't know the exact value, but we know it should be close to now
+    'created_ts': IsNow(delta=3),
+}
+```
+
+Without *dirty-equals*, you'd have to compare individual fields and/or modify some fields before comparison -
+the test would not be declarative or as clear.
+
+*dirty-equals* can do so much more than that, for example:
+
+* [`IsPartialDict`](https://dirty-equals.helpmanual.io/types/dict/#dirty_equals.IsPartialDict)
+  lets you compare a subset of a dictionary
+* [`IsStrictDict`](https://dirty-equals.helpmanual.io/types/dict/#dirty_equals.IsStrictDict)
+  lets you confirm order in a dictionary
+* [`IsList`](https://dirty-equals.helpmanual.io/types/sequence/#dirty_equals.IsList) and
+  [`IsTuple`](https://dirty-equals.helpmanual.io/types/sequence/#dirty_equals.IsTuple)
+  lets you compare partial lists and tuples, with or without order constraints
+* nesting any of these types inside any others
+* [`IsInstance`](https://dirty-equals.helpmanual.io/types/other/#dirty_equals.IsInstance)
+  lets you simply confirm the type of an object
+* You can even use [boolean operators](https://dirty-equals.helpmanual.io/usage/#boolean-logic)
+  `|` and `&` to combine multiple conditions
+* and much more...
+
+## Installation
+
+Simply:
+
+```bash
+pip install dirty-equals
+```
+
+**dirty-equals** requires **Python 3.9+**.
+
+# ===== FILE: dirty_equals/__init__.py =====
+from ._base import AnyThing, DirtyEquals, IsOneOf
+from ._boolean import IsFalseLike, IsTrueLike
+from ._datetime import IsDate, IsDatetime, IsNow, IsToday
+from ._dict import IsDict, IsIgnoreDict, IsPartialDict, IsStrictDict
+from ._inspection import HasAttributes, HasName, HasRepr, IsInstance
+from ._numeric import (
+    IsApprox,
+    IsFloat,
+    IsFloatInf,
+    IsFloatInfNeg,
+    IsFloatInfPos,
+    IsFloatNan,
+    IsInt,
+    IsNegative,
+    IsNegativeFloat,
+    IsNegativeInt,
+    IsNonNegative,
+    IsNonPositive,
+    IsNumber,
+    IsNumeric,
+    IsPositive,
+    IsPositiveFloat,
+    IsPositiveInt,
+)
+from ._other import (
+    FunctionCheck,
+    IsDataclass,
+    IsDataclassType,
+    IsEnum,
+    IsHash,
+    IsIP,
+    IsJson,
+    IsPartialDataclass,
+    IsStrictDataclass,
+    IsUrl,
+    IsUUID,
+)
+from ._sequence import Contains, HasLen, IsList, IsListOrTuple, IsTuple
+from ._strings import IsAnyStr, IsBytes, IsStr
+from .version import VERSION
+
+__all__ = (
+    # base
+    'DirtyEquals',
+    'AnyThing',
+    'IsOneOf',
+    # boolean
+    'IsTrueLike',
+    'IsFalseLike',
+    # dataclass
+    'IsDataclass',
+    'IsDataclassType',
+    'IsPartialDataclass',
+    'IsStrictDataclass',
+    # datetime
+    'IsDatetime',
+    'IsNow',
+    'IsDate',
+    'IsToday',
+    # dict
+    'IsDict',
+    'IsPartialDict',
+    'IsIgnoreDict',
+    'IsStrictDict',
+    # enum
+    'IsEnum',
+    # sequence
+    'Contains',
+    'HasLen',
+    'IsList',
+    'IsTuple',
+    'IsListOrTuple',
+    # numeric
+    'IsNumeric',
+    'IsApprox',
+    'IsNumber',
+    'IsPositive',
+    'IsNegative',
+    'IsNonPositive',
+    'IsNonNegative',
+    'IsInt',
+    'IsPositiveInt',
+    'IsNegativeInt',
+    'IsFloat',
+    'IsPositiveFloat',
+    'IsNegativeFloat',
+    'IsFloatInf',
+    'IsFloatInfNeg',
+    'IsFloatInfPos',
+    'IsFloatNan',
+    # inspection
+    'HasAttributes',
+    'HasName',
+    'HasRepr',
+    'IsInstance',
+    # other
+    'FunctionCheck',
+    'IsJson',
+    'IsUUID',
+    'IsUrl',
+    'IsHash',
+    'IsIP',
+    # strings
+    'IsStr',
+    'IsBytes',
+    'IsAnyStr',
+    # version
+    '__version__',
+)
+
+__version__ = VERSION
+
+# ===== FILE: dirty_equals/_base.py =====
+import io
+from abc import ABCMeta
+from collections.abc import Iterable
+from typing import TYPE_CHECKING, Any, Generic, Optional, Protocol, TypeVar
+
+try:
+    from _pytest._io.pprint import PrettyPrinter
+except ImportError:
+    # support for pytest 7.4.4
+    from pprint import PrettyPrinter  # type: ignore
+
+from ._utils import Omit
+
+if TYPE_CHECKING:
+    from typing import TypeAlias, Union  # noqa: F401
+
+__all__ = 'DirtyEqualsMeta', 'DirtyEquals', 'AnyThing', 'IsOneOf'
+
+class DirtyEqualsMeta(ABCMeta):
+    def __eq__(self, other: Any) -> bool:
+        if self is other:
+            return True
+
+        # this is required as fancy things happen when creating generics which include equals checks, without it,
+        # we get some recursive errors
+        if self is DirtyEquals or other is Generic or other is Protocol:
+            return False
+        else:
+            try:
+                return self() == other
+            except TypeError:
+                # we don't want to raise a type error here since somewhere deep in pytest it does something like
+                # type(a) == type(b), if we raised TypeError we would upset the pytest error message
+                return False
+
+    def __or__(self, other: Any) -> 'DirtyOr':  # type: ignore[override]
+        return DirtyOr(self, other)
+
+    def __and__(self, other: Any) -> 'DirtyAnd':
+        return DirtyAnd(self, other)
+
+    def __invert__(self) -> 'DirtyNot':
+        return DirtyNot(self)
+
+    def __hash__(self) -> int:
+        return hash(self.__name__)
+
+    def __repr__(self) -> str:
+        return self.__name__
+
+T = TypeVar('T')
+
+class DirtyEquals(Generic[T], metaclass=DirtyEqualsMeta):
+    """
+    Base type for all *dirty-equals* types.
+    """
+
+    __slots__ = '_other', '_was_equal', '_repr_args', '_repr_kwargs'
+
+    def __init__(self, *repr_args: Any, **repr_kwargs: Any):
+        """
+        Args:
+            *repr_args: unnamed args to be used in `__repr__`
+            **repr_kwargs: named args to be used in `__repr__`
+        """
+        self._other: Any = None
+        self._was_equal: Optional[bool] = None
+        self._repr_args: Iterable[Any] = repr_args
+        self._repr_kwargs: dict[str, Any] = repr_kwargs
+
+    def equals(self, other: Any) -> bool:
+        """
+        Abstract method, must be implemented by subclasses.
+
+        `TypeError` and `ValueError` are caught in `__eq__` and indicate `other` is not equals to this type.
+        """
+        raise NotImplementedError()
+
+    @property
+    def value(self) -> T:
+        """
+        Property to get the value last successfully compared to this object.
+
+        This is seldom very useful, put it's provided for completeness.
+
+        Example of usage:
+
+        ```py title=".values"
+        from dirty_equals import IsStr
+
+        token_is_str = IsStr(regex=r't-.+')
+        assert 't-123' == token_is_str
+
+        print(token_is_str.value)
+        #> t-123
+        ```
+        """
+        if self._was_equal:
+            return self._other
+        else:
+            raise AttributeError('value is not available until __eq__ has been called')
+
+    def __eq__(self, other: Any) -> bool:
+        self._other = other
+        try:
+            self._was_equal = self.equals(other)
+        except (TypeError, ValueError):
+            self._was_equal = False
+
+        return self._was_equal
+
+    def __ne__(self, other: Any) -> bool:
+        # We don't set _was_equal to avoid strange errors in pytest
+        self._other = other
+        try:
+            return not self.equals(other)
+        except (TypeError, ValueError):
+            return True
+
+    def __or__(self, other: Any) -> 'DirtyOr':
+        return DirtyOr(self, other)
+
+    def __and__(self, other: Any) -> 'DirtyAnd':
+        return DirtyAnd(self, other)
+
+    def __invert__(self) -> 'DirtyNot':
+        return DirtyNot(self)
+
+    def _repr_ne(self) -> str:
+        args = [repr(arg) for arg in self._repr_args if arg is not Omit]
+        args += [f'{k}={v!r}' for k, v in self._repr_kwargs.items() if v is not Omit]
+        return f'{self.__class__.__name__}({", ".join(args)})'
+
+    def __repr__(self) -> str:
+        if self._was_equal:
+            # if we've got the correct value return it to aid in diffs
+            return repr(self._other)
+        else:
+            # else return something which explains what's going on.
+            return self._repr_ne()
+
+    def _pprint_format(self, pprinter: PrettyPrinter, stream: io.StringIO, *args: Any, **kwargs: Any) -> None:
+        # pytest diffs use pprint to format objects, so we patch pprint to call this method
+        # for DirtyEquals objects. So this method needs to follow the same pattern as __repr__.
+        # We check that the protected _format method actually exists
+        # to be safe and to make linters happy.
+        if self._was_equal and hasattr(pprinter, '_format'):
+            pprinter._format(self._other, stream, *args, **kwargs)
+        else:
+            stream.write(repr(self))  # i.e. self._repr_ne() (for now)
+
+# Patch pprint to call _pprint_format for DirtyEquals objects
+# Check that the protected attribute _dispatch exists to be safe and to make linters happy.
+# The reason we modify _dispatch rather than _format
+# is that pytest sometimes uses a subclass of PrettyPrinter which overrides _format.
+if hasattr(PrettyPrinter, '_dispatch'):  # pragma: no branch
+    PrettyPrinter._dispatch[DirtyEquals.__repr__] = lambda pprinter, obj, *args, **kwargs: obj._pprint_format(
+        pprinter, *args, **kwargs
+    )
+
+InstanceOrType: 'TypeAlias' = 'Union[DirtyEquals[Any], DirtyEqualsMeta]'
+
+class DirtyOr(DirtyEquals[Any]):
+    def __init__(self, a: 'InstanceOrType', b: 'InstanceOrType', *extra: 'InstanceOrType'):
+        self.dirties = (a, b) + extra
+        super().__init__()
+
+    def equals(self, other: Any) -> bool:
+        return any(d == other for d in self.dirties)
+
+    def _repr_ne(self) -> str:
+        return ' | '.join(_repr_ne(d) for d in self.dirties)
+
+class DirtyAnd(DirtyEquals[Any]):
+    def __init__(self, a: InstanceOrType, b: InstanceOrType, *extra: InstanceOrType):
+        self.dirties = (a, b) + extra
+        super().__init__()
+
+    def equals(self, other: Any) -> bool:
+        return all(d == other for d in self.dirties)
+
+    def _repr_ne(self) -> str:
+        return ' & '.join(_repr_ne(d) for d in self.dirties)
+
+class DirtyNot(DirtyEquals[Any]):
+    def __init__(self, subject: InstanceOrType):
+        self.subject = subject
+        super().__init__()
+
+    def equals(self, other: Any) -> bool:
+        return self.subject != other
+
+    def _repr_ne(self) -> str:
+        return f'~{_repr_ne(self.subject)}'
+
+def _repr_ne(v: InstanceOrType) -> str:
+    if isinstance(v, DirtyEqualsMeta):
+        return repr(v)
+    else:
+        return v._repr_ne()
+
+class AnyThing(DirtyEquals[Any]):
+    """
+    A type which matches any value. `AnyThing` isn't generally very useful on its own, but can be used within
+    other comparisons.
+
+    ```py title="AnyThing"
+    from dirty_equals import AnyThing, IsList, IsStrictDict
+
+    assert 1 == AnyThing
+    assert 'foobar' == AnyThing
+    assert [1, 2, 3] == AnyThing
+
+    assert [1, 2, 3] == IsList(AnyThing, 2, 3)
+
+    assert {'a': 1, 'b': 2, 'c': 3} == IsStrictDict(a=1, b=AnyThing, c=3)
+    ```
+    """
+
+    def equals(self, other: Any) -> bool:
+        return True
+
+class IsOneOf(DirtyEquals[Any]):
+    """
+    A type which checks that the value is equal to one of the given values.
+
+    Can be useful with boolean operators.
+    """
+
+    def __init__(self, expected_value: Any, *more_expected_values: Any):
+        """
+        Args:
+            expected_value: Expected value for equals to return true.
+            *more_expected_values: More expected values for equals to return true.
+
+        ```py title="IsOneOf"
+        from dirty_equals import Contains, IsOneOf
+
+        assert 1 == IsOneOf(1, 2, 3)
+        assert 4 != IsOneOf(1, 2, 3)
+        # check that a list either contain 1 or is empty
+        assert [1, 2, 3] == Contains(1) | IsOneOf([])
+        assert [] == Contains(1) | IsOneOf([])
+        ```
+        """
+        self.expected_values: tuple[Any, ...] = (expected_value,) + more_expected_values
+        super().__init__(*self.expected_values)
+
+    def equals(self, other: Any) -> bool:
+        return any(other == e for e in self.expected_values)
+
+# ===== FILE: dirty_equals/_boolean.py =====
+from typing import Any
+
+from ._base import DirtyEquals
+from ._utils import Omit
+
+class IsTrueLike(DirtyEquals[bool]):
+    """
+    Check if the value is True like. `IsTrueLike` allows comparison to anything and effectively uses just
+    `return bool(other)`.
+
+    Example of basic usage:
+
+    ```py title="IsTrueLike"
+    from dirty_equals import IsTrueLike
+
+    assert True == IsTrueLike
+    assert 1 == IsTrueLike
+    assert 'true' == IsTrueLike
+    assert 'foobar' == IsTrueLike  # any non-empty string is "True"
+    assert '' != IsTrueLike
+    assert [1] == IsTrueLike
+    assert {} != IsTrueLike
+    assert None != IsTrueLike
+    ```
+    """
+
+    def equals(self, other: Any) -> bool:
+        return bool(other)
+
+class IsFalseLike(DirtyEquals[bool]):
+    """
+    Check if the value is False like. `IsFalseLike` allows comparison to anything and effectively uses
+    `return not bool(other)` (with string checks if `allow_strings=True` is set).
+    """
+
+    def __init__(self, *, allow_strings: bool = False):
+        """
+        Args:
+            allow_strings: if `True`, allow comparisons to `False` like strings, case-insensitive, allows
+                `''`, `'false'` and any string where `float(other) == 0` (e.g. `'0'`).
+
+        Example of basic usage:
+
+        ```py title="IsFalseLike"
+        from dirty_equals import IsFalseLike
+
+        assert False == IsFalseLike
+        assert 0 == IsFalseLike
+        assert 'false' == IsFalseLike(allow_strings=True)
+        assert '0' == IsFalseLike(allow_strings=True)
+        assert 'foobar' != IsFalseLike(allow_strings=True)
+        assert 'false' != IsFalseLike
+        assert 'True' != IsFalseLike(allow_strings=True)
+        assert [1] != IsFalseLike
+        assert {} == IsFalseLike
+        assert None == IsFalseLike
+        assert '' == IsFalseLike(allow_strings=True)
+        assert '' == IsFalseLike
+        ```
+        """
+        self.allow_strings = allow_strings
+        super().__init__(allow_strings=allow_strings or Omit)
+
+    def equals(self, other: Any) -> bool:
+        if isinstance(other, str) and self.allow_strings:
+            return self.make_string_check(other)
+        return not bool(other)
+
+    @staticmethod
+    def make_string_check(other: str) -> bool:
+        if other.lower() in {'false', ''}:
+            return True
+
+        try:
+            return float(other) == 0
+        except ValueError:
+            return False
+
+# ===== FILE: dirty_equals/_datetime.py =====
+from __future__ import annotations as _annotations
+
+from datetime import date, datetime, timedelta, timezone, tzinfo
+from typing import Any
+from zoneinfo import ZoneInfo
+
+from ._numeric import IsNumeric
+from ._utils import Omit
+
+class IsDatetime(IsNumeric[datetime]):
+    """
+    Check if the value is a datetime, and matches the given conditions.
+    """
+
+    allowed_types = datetime
+
+    def __init__(
+        self,
+        *,
+        approx: datetime | None = None,
+        delta: timedelta | int | float | None = None,
+        gt: datetime | None = None,
+        lt: datetime | None = None,
+        ge: datetime | None = None,
+        le: datetime | None = None,
+        unix_number: bool = False,
+        iso_string: bool = False,
+        format_string: str | None = None,
+        enforce_tz: bool = True,
+    ):
+        """
+        Args:
+            approx: A value to approximately compare to.
+            delta: The allowable different when comparing to the value to `approx`, if omitted 2 seconds is used,
+                ints and floats are assumed to represent seconds and converted to `timedelta`s.
+            gt: Value which the compared value should be greater than (after).
+            lt: Value which the compared value should be less than (before).
+            ge: Value which the compared value should be greater than (after) or equal to.
+            le: Value which the compared value should be less than (before) or equal to.
+            unix_number: whether to allow unix timestamp numbers in comparison
+            iso_string: whether to allow iso formatted strings in comparison
+            format_string: if provided, `format_string` is used with `datetime.strptime` to parse strings
+            enforce_tz: whether timezone should be enforced in comparison, see below for more details
+
+        Examples of basic usage:
+
+        ```py title="IsDatetime"
+        from datetime import datetime
+
+        from dirty_equals import IsDatetime
+
+        y2k = datetime(2000, 1, 1)
+        assert datetime(2000, 1, 1) == IsDatetime(approx=y2k)
+        # Note: this requires the system timezone to be UTC
+        assert 946684800.123 == IsDatetime(approx=y2k, unix_number=True)
+        assert datetime(2000, 1, 1, 0, 0, 9) == IsDatetime(approx=y2k, delta=10)
+        assert '2000-01-01T00:00' == IsDatetime(approx=y2k, iso_string=True)
+
+        assert datetime(2000, 1, 2) == IsDatetime(gt=y2k)
+        assert datetime(1999, 1, 2) != IsDatetime(gt=y2k)
+        ```
+        """
+        if isinstance(delta, (int, float)):
+            delta = timedelta(seconds=delta)
+
+        super().__init__(
+            approx=approx,
+            delta=delta,  # type: ignore[arg-type]
+            gt=gt,
+            lt=lt,
+            ge=ge,
+            le=le,
+        )
+        self.unix_number = unix_number
+        self.iso_string = iso_string
+        self.format_string = format_string
+        self.enforce_tz = enforce_tz
+        self._repr_kwargs.update(
+            unix_number=Omit if unix_number is False else unix_number,
+            iso_string=Omit if iso_string is False else iso_string,
+            format_string=Omit if format_string is None else format_string,
+            enforce_tz=Omit if enforce_tz is True else format_string,
+        )
+
+    def prepare(self, other: Any) -> datetime:
+        if isinstance(other, datetime):
+            dt = other
+        elif isinstance(other, (float, int)):
+            if self.unix_number:
+                dt = datetime.fromtimestamp(other)
+            else:
+                raise TypeError('numbers not allowed')
+        elif isinstance(other, str):
+            if self.iso_string:
+                dt = datetime.fromisoformat(other)
+            elif self.format_string:
+                dt = datetime.strptime(other, self.format_string)
+            else:
+                raise ValueError('not a valid datetime string')
+        else:
+            raise ValueError(f'{type(other)} not valid as datetime')
+
+        if self.approx is not None and not self.enforce_tz and self.approx.tzinfo is None and dt.tzinfo is not None:
+            dt = dt.replace(tzinfo=None)
+        return dt
+
+    def approx_equals(self, other: datetime, delta: timedelta) -> bool:
+        if not super().approx_equals(other, delta):
+            return False
+
+        if self.enforce_tz:
+            if self.approx.tzinfo is None:  # type: ignore[union-attr]
+                return other.tzinfo is None
+            else:
+                approx_offset = self.approx.tzinfo.utcoffset(self.approx)  # type: ignore[union-attr]
+                other_offset = other.tzinfo.utcoffset(other)  # type: ignore[union-attr]
+                return approx_offset == other_offset
+        else:
+            return True
+
+class IsNow(IsDatetime):
+    """
+    Check if a datetime is close to now, this is similar to `IsDatetime(approx=datetime.now())`,
+    but slightly more powerful.
+    """
+
+    def __init__(
+        self,
+        *,
+        delta: timedelta | int | float = 2,
+        unix_number: bool = False,
+        iso_string: bool = False,
+        format_string: str | None = None,
+        enforce_tz: bool = True,
+        tz: str | tzinfo | None = None,
+    ):
+        """
+        Args:
+            delta: The allowable different when comparing to the value to now, if omitted 2 seconds is used,
+                ints and floats are assumed to represent seconds and converted to `timedelta`s.
+            unix_number: whether to allow unix timestamp numbers in comparison
+            iso_string: whether to allow iso formatted strings in comparison
+            format_string: if provided, `format_string` is used with `datetime.strptime` to parse strings
+            enforce_tz: whether timezone should be enforced in comparison, see below for more details
+            tz: either a `ZoneInfo`, a `datetime.timezone` or a string which will be passed to `ZoneInfo`,
+                to get a timezone, if provided now will be converted to this timezone.
+
+        ```py title="IsNow"
+        from datetime import datetime, timezone
+
+        from dirty_equals import IsNow
+
+        now = datetime.now()
+        assert now == IsNow
+        assert now.timestamp() == IsNow(unix_number=True)
+        assert now.timestamp() != IsNow
+        assert now.isoformat() == IsNow(iso_string=True)
+        assert now.isoformat() != IsNow
+
+        utc_now = datetime.utcnow().replace(tzinfo=timezone.utc)
+        assert utc_now == IsNow(tz=timezone.utc)
+        ```
+        """
+        if isinstance(tz, str):
+            tz = ZoneInfo(tz)
+
+        self.tz = tz
+
+        approx = self._get_now()
+
+        super().__init__(
+            approx=approx,
+            delta=delta,
+            unix_number=unix_number,
+            iso_string=iso_string,
+            format_string=format_string,
+            enforce_tz=enforce_tz,
+        )
+        if tz is not None:
+            self._repr_kwargs['tz'] = tz
+
+    def _get_now(self) -> datetime:
+        if self.tz is None:
+            return datetime.now()
+        else:
+            utc_now = datetime.now(tz=timezone.utc).replace(tzinfo=timezone.utc)
+            return utc_now.astimezone(self.tz)
+
+    def prepare(self, other: Any) -> datetime:
+        # update approx for every comparing, to check if other value is dirty equal
+        # to current moment of time
+        self.approx = self._get_now()
+
+        return super().prepare(other)
+
+class IsDate(IsNumeric[date]):
+    """
+    Check if the value is a date, and matches the given conditions.
+    """
+
+    allowed_types = date
+
+    def __init__(
+        self,
+        *,
+        approx: date | None = None,
+        delta: timedelta | int | float | None = None,
+        gt: date | None = None,
+        lt: date | None = None,
+        ge: date | None = None,
+        le: date | None = None,
+        iso_string: bool = False,
+        format_string: str | None = None,
+    ):
+        """
+        Args:
+            approx: A value to approximately compare to.
+            delta: The allowable different when comparing to the value to now, if omitted 2 seconds is used,
+                ints and floats are assumed to represent seconds and converted to `timedelta`s.
+            gt: Value which the compared value should be greater than (after).
+            lt: Value which the compared value should be less than (before).
+            ge: Value which the compared value should be greater than (after) or equal to.
+            le: Value which the compared value should be less than (before) or equal to.
+            iso_string: whether to allow iso formatted strings in comparison
+            format_string: if provided, `format_string` is used with `datetime.strptime` to parse strings
+
+        Examples of basic usage:
+
+        ```py title="IsDate"
+        from datetime import date
+
+        from dirty_equals import IsDate
+
+        y2k = date(2000, 1, 1)
+        assert date(2000, 1, 1) == IsDate(approx=y2k)
+        assert '2000-01-01' == IsDate(approx=y2k, iso_string=True)
+
+        assert date(2000, 1, 2) == IsDate(gt=y2k)
+        assert date(1999, 1, 2) != IsDate(gt=y2k)
+        ```
+        """
+
+        if delta is None:
+            delta = timedelta()
+        elif isinstance(delta, (int, float)):
+            delta = timedelta(seconds=delta)
+
+        super().__init__(approx=approx, gt=gt, lt=lt, ge=ge, le=le, delta=delta)  # type: ignore[arg-type]
+
+        self.iso_string = iso_string
+        self.format_string = format_string
+        self._repr_kwargs.update(
+            iso_string=Omit if iso_string is False else iso_string,
+            format_string=Omit if format_string is None else format_string,
+        )
+
+    def prepare(self, other: Any) -> date:
+        if type(other) is date:
+            dt = other
+        elif isinstance(other, str):
+            if self.iso_string:
+                dt = date.fromisoformat(other)
+            elif self.format_string:
+                dt = datetime.strptime(other, self.format_string).date()
+            else:
+                raise ValueError('not a valid date string')
+        else:
+            raise ValueError(f'{type(other)} not valid as date')
+
+        return dt
+
+class IsToday(IsDate):
+    """
+    Check if a date is today, this is similar to `IsDate(approx=date.today())`, but slightly more powerful.
+    """
+
+    def __init__(
+        self,
+        *,
+        iso_string: bool = False,
+        format_string: str | None = None,
+    ):
+        """
+        Args:
+            iso_string: whether to allow iso formatted strings in comparison
+            format_string: if provided, `format_string` is used with `datetime.strptime` to parse strings
+        ```py title="IsToday"
+        from datetime import date, timedelta
+
+        from dirty_equals import IsToday
+
+        today = date.today()
+        assert today == IsToday
+        assert today.isoformat() == IsToday(iso_string=True)
+        assert today.isoformat() != IsToday
+        assert today + timedelta(days=1) != IsToday
+        assert today.strftime('%Y/%m/%d') == IsToday(format_string='%Y/%m/%d')
+        assert today.strftime('%Y/%m/%d') != IsToday()
+        ```
+        """
+
+        super().__init__(approx=date.today(), iso_string=iso_string, format_string=format_string)
+
+# ===== FILE: dirty_equals/_dict.py =====
+from __future__ import annotations
+
+from collections.abc import Container
+from typing import Any, Callable, overload
+
+from ._base import DirtyEquals, DirtyEqualsMeta
+from ._utils import get_dict_arg
+
+NotGiven = object()
+
+class IsDict(DirtyEquals[dict[Any, Any]]):
+    """
+    Base class for comparing dictionaries. By default, `IsDict` isn't particularly useful on its own
+    (it behaves pretty much like a normal `dict`), but it can be subclassed
+    (see [`IsPartialDict`][dirty_equals.IsPartialDict] and [`IsStrictDict`][dirty_equals.IsStrictDict]) or modified
+    with `.settings(...)` to powerful things.
+    """
+
+    @overload
+    def __init__(self, expected: dict[Any, Any]): ...
+
+    @overload
+    def __init__(self, **expected: Any): ...
+
+    def __init__(self, *expected_args: dict[Any, Any], **expected_kwargs: Any):
+        """
+        Can be created from either keyword arguments or an existing dictionary (same as `dict()`).
+
+        `IsDict` is not particularly useful on its own, but it can be subclassed or modified with
+        [`.settings(...)`][dirty_equals.IsDict.settings] to facilitate powerful comparison of dictionaries.
+
+        ```py title="IsDict"
+        from dirty_equals import IsDict
+
+        assert {'a': 1, 'b': 2} == IsDict(a=1, b=2)
+        assert {1: 2, 3: 4} == IsDict({1: 2, 3: 4})
+        ```
+        """
+        self.expected_values = get_dict_arg('IsDict', expected_args, expected_kwargs)
+
+        self.strict = False
+        self.partial = False
+        self.ignore: None | Container[Any] | Callable[[Any], bool] = None
+        self._post_init()
+        super().__init__()
+
+    def _post_init(self) -> None:
+        pass
+
+    def settings(
+        self,
+        *,
+        strict: bool | None = None,
+        partial: bool | None = None,
+        ignore: None | Container[Any] | Callable[[Any], bool] = NotGiven,  # type: ignore[assignment]
+    ) -> IsDict:
+        """
+        Allows you to customise the behaviour of `IsDict`, technically a new `IsDict` is required to allow chaining.
+
+        Args:
+            strict (bool): If `True`, the order of key/value pairs must match.
+            partial (bool): If `True`, only keys include in the wrapped dict are checked.
+            ignore (Union[None, Container[Any], Callable[[Any], bool]]): Values to omit from comparison.
+                Can be either a `Container` (e.g. `set` or `list`) of values to ignore, or a function that takes a
+                value and should return `True` if the value should be ignored.
+
+        ```py title="IsDict.settings(...)"
+        from dirty_equals import IsDict
+
+        assert {'a': 1, 'b': 2, 'c': None} != IsDict(a=1, b=2)
+        assert {'a': 1, 'b': 2, 'c': None} == IsDict(a=1, b=2).settings(partial=True)  # (1)!
+
+        assert {'b': 2, 'a': 1} == IsDict(a=1, b=2)
+        assert {'b': 2, 'a': 1} != IsDict(a=1, b=2).settings(strict=True)  # (2)!
+
+        # combining partial and strict
+        assert {'a': 1, 'b': None, 'c': 3} == IsDict(a=1, c=3).settings(
+            strict=True, partial=True
+        )
+        assert {'b': None, 'c': 3, 'a': 1} != IsDict(a=1, c=3).settings(
+            strict=True, partial=True
+        )
+        ```
+
+        1. This is the same as [`IsPartialDict(a=1, b=2)`][dirty_equals.IsPartialDict]
+        2. This is the same as [`IsStrictDict(a=1, b=2)`][dirty_equals.IsStrictDict]
+        """
+        new_cls = self.__class__(self.expected_values)
+        new_cls.__dict__ = self.__dict__.copy()
+        if strict is not None:
+            new_cls.strict = strict
+        if partial is not None:
+            new_cls.partial = partial
+        if ignore is not NotGiven:
+            new_cls.ignore = ignore
+
+        if new_cls.partial and new_cls.ignore:
+            raise TypeError('partial and ignore cannot be used together')
+
+        return new_cls
+
+    def equals(self, other: dict[Any, Any]) -> bool:
+        if not isinstance(other, dict):
+            return False
+
+        expected = self.expected_values
+        if self.partial:
+            other = {k: v for k, v in other.items() if k in expected}
+
+        if self.ignore:
+            expected = self._filter_dict(self.expected_values)
+            other = self._filter_dict(other)
+
+        if other != expected:
+            return False
+
+        if self.strict and list(other.keys()) != list(expected.keys()):
+            return False
+
+        return True
+
+    def _filter_dict(self, d: dict[Any, Any]) -> dict[Any, Any]:
+        return {k: v for k, v in d.items() if not self._ignore_value(v)}
+
+    def _ignore_value(self, v: Any) -> bool:
+        # `isinstance(v, (DirtyEquals, DirtyEqualsMeta))` seems to always return `True` on pypy, no idea why
+        if type(v) in (DirtyEquals, DirtyEqualsMeta):
+            return False
+        elif callable(self.ignore):
+            return self.ignore(v)
+        else:
+            try:
+                return v in self.ignore  # type: ignore[operator]
+            except TypeError:
+                # happens for unhashable types
+                return False
+
+    def _repr_ne(self) -> str:
+        name = self.__class__.__name__
+        modifiers = []
+        if self.partial != (name == 'IsPartialDict'):
+            modifiers += [f'partial={self.partial}']
+        if (self.ignore == {None}) != (name == 'IsIgnoreDict') or self.ignore not in (None, {None}):
+            r = self.ignore.__name__ if callable(self.ignore) else repr(self.ignore)
+            modifiers += [f'ignore={r}']
+        if self.strict != (name == 'IsStrictDict'):
+            modifiers += [f'strict={self.strict}']
+
+        if modifiers:
+            mod = f'[{", ".join(modifiers)}]'
+        else:
+            mod = ''
+
+        args = [f'{k}={v!r}' for k, v in self.expected_values.items()]
+        return f'{name}{mod}({", ".join(args)})'
+
+class IsPartialDict(IsDict):
+    """
+    Partial dictionary comparison, this is the same as
+    [`IsDict(...).settings(partial=True)`][dirty_equals.IsDict.settings].
+
+    ```py title="IsPartialDict"
+    from dirty_equals import IsPartialDict
+
+    assert {'a': 1, 'b': 2, 'c': 3} == IsPartialDict(a=1, b=2)
+
+    assert {'a': 1, 'b': 2, 'c': 3} != IsPartialDict(a=1, b=3)
+    assert {'a': 1, 'b': 2, 'd': 3} != IsPartialDict(a=1, b=2, c=3)
+
+    # combining partial and strict
+    assert {'a': 1, 'b': None, 'c': 3} == IsPartialDict(a=1, c=3).settings(strict=True)
+    assert {'b': None, 'c': 3, 'a': 1} != IsPartialDict(a=1, c=3).settings(strict=True)
+    ```
+    """
+
+    def _post_init(self) -> None:
+        self.partial = True
+
+class IsIgnoreDict(IsDict):
+    """
+    Dictionary comparison with `None` values ignored, this is the same as
+    [`IsDict(...).settings(ignore={None})`][dirty_equals.IsDict.settings].
+
+    `.settings(...)` can be used to customise the behaviour of `IsIgnoreDict`, in particular changing which
+    values are ignored.
+
+    ```py title="IsIgnoreDict"
+    from dirty_equals import IsIgnoreDict
+
+    assert {'a': 1, 'b': 2, 'c': None} == IsIgnoreDict(a=1, b=2)
+    assert {'a': 1, 'b': 2, 'c': 'ignore'} == (
+        IsIgnoreDict(a=1, b=2).settings(ignore={None, 'ignore'})
+    )
+
+    def is_even(v: int) -> bool:
+        return v % 2 == 0
+
+    assert {'a': 1, 'b': 2, 'c': 3, 'd': 4} == (
+        IsIgnoreDict(a=1, c=3).settings(ignore=is_even)
+    )
+
+    # combining partial and strict
+    assert {'a': 1, 'b': None, 'c': 3} == IsIgnoreDict(a=1, c

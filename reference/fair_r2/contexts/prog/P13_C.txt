@@ -1,0 +1,105 @@
+【任务书】
+Follow-up feature (builds on the escape lt/gt fix):
+Add a public function `needs_escape(s)` to the `markupsafe` package such that `from markupsafe import needs_escape` works.
+`needs_escape(s)` must return True if the string `s` contains any of the characters `&`, `<`, `>`, `'`, or `"`, otherwise False.
+Implement it next to the other top-level helpers in `src/markupsafe/__init__.py` (or in `_native.py` and re-export). Do not break `escape` / `escape_silent` / `soft_str`.
+Do not touch tests/.
+
+# MECHANICAL INDEX (auto; not a solution ledger)
+src/markupsafe/__init__.py:48  def escape_silent(s: t.Any | None, /) -> Markup:
+src/markupsafe/__init__.py:20  class _TPEscape(t.Protocol):
+src/markupsafe/__init__.py:24  def escape(s: t.Any, /) -> Markup:
+src/markupsafe/__init__.py:64  def soft_str(s: t.Any, /) -> str:
+src/markupsafe/__init__.py:188  def unescape(self, /) -> str:
+src/markupsafe/__init__.py:241  def escape(cls, s: t.Any, /) -> te.Self:
+src/markupsafe/__init__.py:342  class EscapeFormatter(string.Formatter):
+src/markupsafe/__init__.py:367  class _MarkupEscapeHelper:
+src/markupsafe/__init__.py:345  def __init__(self, escape: _TPEscape) -> None:
+src/markupsafe/__init__.py:372  def __init__(self, obj: t.Any, escape: _TPEscape) -> None:
+src/markupsafe/_native.py:1  def _escape_inner(s: str, /) -> str:
+src/markupsafe/__init__.py:16  class _HasHTML(t.Protocol):
+src/markupsafe/__init__.py:17  def __html__(self, /) -> str: ...
+src/markupsafe/__init__.py:21  def __call__(self, s: t.Any, /) -> Markup: ...
+src/markupsafe/__init__.py:84  class Markup(str):
+src/markupsafe/__init__.py:122  def __new__(
+src/markupsafe/__init__.py:133  def __html__(self, /) -> te.Self:
+src/markupsafe/__init__.py:136  def __add__(self, value: str | _HasHTML, /) -> te.Self:
+# README head
+<div align="center"><img src="https://raw.githubusercontent.com/pallets/markupsafe/refs/heads/stable/docs/_static/markupsafe-name.svg" alt="" height="150"></div>
+
+# MarkupSafe
+
+MarkupSafe implements a text object that escapes characters so it is
+safe to use in HTML and XML. Characters that have special meanings are
+replaced so that they display as the actual characters. This mitigates
+injection attacks, meaning untrusted user input can safely be displayed
+on a page.
+
+## Examples
+
+```pycon
+>>> f
+
+# AUTO FILE WINDOW: src/markupsafe/__init__.py (slice)
+# slice around L48 (file has 12840 chars; truncated)
+
+    If the object has an ``__html__`` method, it is called and the
+    return value is assumed to already be safe for HTML.
+
+    :param s: An object to be converted to a string and escaped.
+    :return: A :class:`Markup` string with the escaped text.
+    """
+    # If the object is already a plain string, skip __html__ check and string
+    # conversion. This is the most common use case.
+    # Use type(s) instead of s.__class__ because a proxy object may be reporting
+    # the __class__ of the proxied value.
+    if type(s) is str:
+        return Markup(_escape_inner(s))
+
+    if hasattr(s, "__html__"):
+        return Markup(s.__html__())
+
+    return Markup(_escape_inner(str(s)))
+
+def escape_silent(s: t.Any | None, /) -> Markup:
+    """Like :func:`escape` but treats ``None`` as the empty string.
+    Useful with optional values, as otherwise you get the string
+    ``'None'`` when the value is ``None``.
+
+    >>> escape(None)
+    Markup('None')
+    >>> escape_silent(None)
+    Markup('')
+    """
+    if s is None:
+        return Markup()
+
+    return escape(s)
+
+def soft_str(s: t.Any, /) -> str:
+    """Convert an object to a string if it isn't already. This preserves
+    a :class:`Markup` string rather than converting it back to a basic
+    string, so it will still be marked as safe and won't be escaped
+    again.
+
+    >>> value = escape("<User 1>")
+    >>> value
+    Markup('&lt;User 1&gt;')
+    >>> escape(str(value))
+    Markup('&amp;lt;User 1&amp;gt;')
+    >>> escape(soft_str(value))
+    Markup('&lt;User 1&gt;')
+    """
+    if not isinstance(s, str):
+        return str(s)
+
+    return s
+
+class Markup(str):
+    """A string that is ready to be safely inserted into an HTML or XML
+    document, either because it was escaped or because it was marked
+    safe.
+
+    Passing an object to the constructor converts it to text and wraps
+    it to mark it safe without escaping. To escape the text, use the
+    :meth:`escape` class method instead.

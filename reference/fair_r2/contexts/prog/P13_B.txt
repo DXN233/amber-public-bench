@@ -1,0 +1,1195 @@
+【任务书】
+Follow-up feature (builds on the escape lt/gt fix):
+Add a public function `needs_escape(s)` to the `markupsafe` package such that `from markupsafe import needs_escape` works.
+`needs_escape(s)` must return True if the string `s` contains any of the characters `&`, `<`, `>`, `'`, or `"`, otherwise False.
+Implement it next to the other top-level helpers in `src/markupsafe/__init__.py` (or in `_native.py` and re-export). Do not break `escape` / `escape_silent` / `soft_str`.
+Do not touch tests/.
+
+# ===== FILE: src/markupsafe/__init__.py =====
+from __future__ import annotations
+
+import collections.abc as cabc
+import string
+import typing as t
+
+try:
+    from ._speedups import _escape_inner
+except ImportError:
+    from ._native import _escape_inner
+
+if t.TYPE_CHECKING:
+    import typing_extensions as te
+
+class _HasHTML(t.Protocol):
+    def __html__(self, /) -> str: ...
+
+class _TPEscape(t.Protocol):
+    def __call__(self, s: t.Any, /) -> Markup: ...
+
+def escape(s: t.Any, /) -> Markup:
+    """Replace the characters ``&``, ``<``, ``>``, ``'``, and ``"`` in
+    the string with HTML-safe sequences. Use this if you need to display
+    text that might contain such characters in HTML.
+
+    If the object has an ``__html__`` method, it is called and the
+    return value is assumed to already be safe for HTML.
+
+    :param s: An object to be converted to a string and escaped.
+    :return: A :class:`Markup` string with the escaped text.
+    """
+    # If the object is already a plain string, skip __html__ check and string
+    # conversion. This is the most common use case.
+    # Use type(s) instead of s.__class__ because a proxy object may be reporting
+    # the __class__ of the proxied value.
+    if type(s) is str:
+        return Markup(_escape_inner(s))
+
+    if hasattr(s, "__html__"):
+        return Markup(s.__html__())
+
+    return Markup(_escape_inner(str(s)))
+
+def escape_silent(s: t.Any | None, /) -> Markup:
+    """Like :func:`escape` but treats ``None`` as the empty string.
+    Useful with optional values, as otherwise you get the string
+    ``'None'`` when the value is ``None``.
+
+    >>> escape(None)
+    Markup('None')
+    >>> escape_silent(None)
+    Markup('')
+    """
+    if s is None:
+        return Markup()
+
+    return escape(s)
+
+def needs_escape(s: str, /) -> bool:
+    """Return ``True`` if the string contains any of the characters
+    ``&``, ``<``, ``>``, ``'``, or ``"``, otherwise ``False``.
+
+    >>> needs_escape("Hello, World!")
+    False
+    >>> needs_escape("<strong>Hello</strong>")
+    True
+    """
+    return any(c in s for c in "&<>'\"")
+
+def soft_str(s: t.Any, /) -> str:
+    """Convert an object to a string if it isn't already. This preserves
+    a :class:`Markup` string rather than converting it back to a basic
+    string, so it will still be marked as safe and won't be escaped
+    again.
+
+    >>> value = escape("<User 1>")
+    >>> value
+    Markup('&lt;User 1&gt;')
+    >>> escape(str(value))
+    Markup('&amp;lt;User 1&amp;gt;')
+    >>> escape(soft_str(value))
+    Markup('&lt;User 1&gt;')
+    """
+    if not isinstance(s, str):
+        return str(s)
+
+    return s
+
+class Markup(str):
+    """A string that is ready to be safely inserted into an HTML or XML
+    document, either because it was escaped or because it was marked
+    safe.
+
+    Passing an object to the constructor converts it to text and wraps
+    it to mark it safe without escaping. To escape the text, use the
+    :meth:`escape` class method instead.
+
+    >>> Markup("Hello, <em>World</em>!")
+    Markup('Hello, <em>World</em>!')
+    >>> Markup(42)
+    Markup('42')
+    >>> Markup.escape("Hello, <em>World</em>!")
+    Markup('Hello &lt;em&gt;World&lt;/em&gt;!')
+
+    This implements the ``__html__()`` interface that some frameworks
+    use. Passing an object that implements ``__html__()`` will wrap the
+    output of that method, marking it safe.
+
+    >>> class Foo:
+    ...     def __html__(self):
+    ...         return '<a href="/foo">foo</a>'
+    ...
+    >>> Markup(Foo())
+    Markup('<a href="/foo">foo</a>')
+
+    This is a subclass of :class:`str`. It has the same methods, but
+    escapes their arguments and returns a ``Markup`` instance.
+
+    >>> Markup("<em>%s</em>") % ("foo & bar",)
+    Markup('<em>foo &amp; bar</em>')
+    >>> Markup("<em>Hello</em> ") + "<foo>"
+    Markup('<em>Hello</em> &lt;foo&gt;')
+    """
+
+    __slots__ = ()
+
+    def __new__(
+        cls, object: t.Any = "", encoding: str | None = None, errors: str = "strict"
+    ) -> te.Self:
+        if hasattr(object, "__html__"):
+            object = object.__html__()
+
+        if encoding is None:
+            return super().__new__(cls, object)
+
+        return super().__new__(cls, object, encoding, errors)
+
+    def __html__(self, /) -> te.Self:
+        return self
+
+    def __add__(self, value: str | _HasHTML, /) -> te.Self:
+        if isinstance(value, str) or hasattr(value, "__html__"):
+            return self.__class__(super().__add__(self.escape(value)))
+
+        return NotImplemented
+
+    def __radd__(self, value: str | _HasHTML, /) -> te.Self:
+        if isinstance(value, str) or hasattr(value, "__html__"):
+            return self.escape(value).__add__(self)
+
+        return NotImplemented
+
+    def __mul__(self, value: t.SupportsIndex, /) -> te.Self:
+        return self.__class__(super().__mul__(value))
+
+    def __rmul__(self, value: t.SupportsIndex, /) -> te.Self:
+        return self.__class__(super().__mul__(value))
+
+    def __mod__(self, value: t.Any, /) -> te.Self:
+        if isinstance(value, tuple):
+            # a tuple of arguments, each wrapped
+            value = tuple(_MarkupEscapeHelper(x, self.escape) for x in value)
+        elif hasattr(type(value), "__getitem__") and not isinstance(value, str):
+            # a mapping of arguments, wrapped
+            value = _MarkupEscapeHelper(value, self.escape)
+        else:
+            # a single argument, wrapped with the helper and a tuple
+            value = (_MarkupEscapeHelper(value, self.escape),)
+
+        return self.__class__(super().__mod__(value))
+
+    def __repr__(self, /) -> str:
+        return f"{self.__class__.__name__}({super().__repr__()})"
+
+    def join(self, iterable: cabc.Iterable[str | _HasHTML], /) -> te.Self:
+        return self.__class__(super().join(map(self.escape, iterable)))
+
+    def split(  # type: ignore[override]
+        self, /, sep: str | None = None, maxsplit: t.SupportsIndex = -1
+    ) -> list[te.Self]:
+        return [self.__class__(v) for v in super().split(sep, maxsplit)]
+
+    def rsplit(  # type: ignore[override]
+        self, /, sep: str | None = None, maxsplit: t.SupportsIndex = -1
+    ) -> list[te.Self]:
+        return [self.__class__(v) for v in super().rsplit(sep, maxsplit)]
+
+    def splitlines(  # type: ignore[override]
+        self, /, keepends: bool = False
+    ) -> list[te.Self]:
+        return [self.__class__(v) for v in super().splitlines(keepends)]
+
+    def unescape(self, /) -> str:
+        """Convert escaped markup back into a text string. This replaces
+        HTML entities with the characters they represent.
+
+        >>> Markup("Main &raquo; <em>About</em>").unescape()
+        'Main » <em>About</em>'
+        """
+        from html import unescape
+
+        return unescape(str(self))
+
+    def striptags(self, /) -> str:
+        """:meth:`unescape` the markup, remove tags, and normalize
+        whitespace to single spaces.
+
+        >>> Markup("Main &raquo;\t<em>About</em>").striptags()
+        'Main » About'
+        """
+        value = str(self)
+        parts = []
+        pos = 0
+
+        while (start := value.find("<", pos)) != -1:
+            if value.startswith("<!--", start):
+                # comment
+                if (end := value.find("-->", start + 4)) == -1:
+                    # unclosed
+                    break
+
+                end += 3
+            else:
+                # tag
+                if (end := value.find(">", start)) == -1:
+                    # unclosed
+                    break
+
+                end += 1
+
+            parts.append(value[pos:start])
+            pos = end
+
+        # found at least one tag, combine parts
+        if pos > 0:
+            # any trailing data after the last closed tag
+            parts.append(value[pos:])
+            value = "".join(parts)
+
+        # collapse spaces
+        value = " ".join(value.split())
+        # unescape the processed value using the current class
+        return self.__class__(value).unescape()
+
+    @classmethod
+    def escape(cls, s: t.Any, /) -> te.Self:
+        """Escape a string. Calls :func:`escape` and ensures that for
+        subclasses the correct type is returned.
+        """
+        rv = escape(s)
+
+        if rv.__class__ is not cls:
+            return cls(rv)
+
+        return rv
+
+    def __getitem__(self, key: t.SupportsIndex | slice, /) -> te.Self:
+        return self.__class__(super().__getitem__(key))
+
+    def capitalize(self, /) -> te.Self:
+        return self.__class__(super().capitalize())
+
+    def title(self, /) -> te.Self:
+        return self.__class__(super().title())
+
+    def lower(self, /) -> te.Self:
+        return self.__class__(super().lower())
+
+    def upper(self, /) -> te.Self:
+        return self.__class__(super().upper())
+
+    def replace(self, old: str, new: str, count: t.SupportsIndex = -1, /) -> te.Self:
+        return self.__class__(super().replace(old, self.escape(new), count))
+
+    def ljust(self, width: t.SupportsIndex, fillchar: str = " ", /) -> te.Self:
+        return self.__class__(super().ljust(width, self.escape(fillchar)))
+
+    def rjust(self, width: t.SupportsIndex, fillchar: str = " ", /) -> te.Self:
+        return self.__class__(super().rjust(width, self.escape(fillchar)))
+
+    def lstrip(self, chars: str | None = None, /) -> te.Self:
+        return self.__class__(super().lstrip(chars))
+
+    def rstrip(self, chars: str | None = None, /) -> te.Self:
+        return self.__class__(super().rstrip(chars))
+
+    def center(self, width: t.SupportsIndex, fillchar: str = " ", /) -> te.Self:
+        return self.__class__(super().center(width, self.escape(fillchar)))
+
+    def strip(self, chars: str | None = None, /) -> te.Self:
+        return self.__class__(super().strip(chars))
+
+    def translate(
+        self,
+        table: cabc.Mapping[int, str | int | None],  # type: ignore[override]
+        /,
+    ) -> str:
+        return self.__class__(super().translate(table))
+
+    def expandtabs(self, /, tabsize: t.SupportsIndex = 8) -> te.Self:
+        return self.__class__(super().expandtabs(tabsize))
+
+    def swapcase(self, /) -> te.Self:
+        return self.__class__(super().swapcase())
+
+    def zfill(self, width: t.SupportsIndex, /) -> te.Self:
+        return self.__class__(super().zfill(width))
+
+    def casefold(self, /) -> te.Self:
+        return self.__class__(super().casefold())
+
+    def removeprefix(self, prefix: str, /) -> te.Self:
+        return self.__class__(super().removeprefix(prefix))
+
+    def removesuffix(self, suffix: str) -> te.Self:
+        return self.__class__(super().removesuffix(suffix))
+
+    def partition(self, sep: str, /) -> tuple[te.Self, te.Self, te.Self]:
+        left, sep, right = super().partition(sep)
+        cls = self.__class__
+        return cls(left), cls(sep), cls(right)
+
+    def rpartition(self, sep: str, /) -> tuple[te.Self, te.Self, te.Self]:
+        left, sep, right = super().rpartition(sep)
+        cls = self.__class__
+        return cls(left), cls(sep), cls(right)
+
+    def format(self, *args: t.Any, **kwargs: t.Any) -> te.Self:
+        formatter = EscapeFormatter(self.escape)
+        return self.__class__(formatter.vformat(self, args, kwargs))
+
+    def format_map(
+        self,
+        mapping: cabc.Mapping[str, t.Any],  # type: ignore[override]
+        /,
+    ) -> te.Self:
+        formatter = EscapeFormatter(self.escape)
+        return self.__class__(formatter.vformat(self, (), mapping))
+
+    def __html_format__(self, format_spec: str, /) -> te.Self:
+        if format_spec:
+            raise ValueError("Unsupported format specification for Markup.")
+
+        return self
+
+class EscapeFormatter(string.Formatter):
+    __slots__ = ("escape",)
+
+    def __init__(self, escape: _TPEscape) -> None:
+        self.escape: _TPEscape = escape
+        super().__init__()
+
+    def format_field(self, value: t.Any, format_spec: str) -> str:
+        if hasattr(value, "__html_format__"):
+            rv = value.__html_format__(format_spec)
+        elif hasattr(value, "__html__"):
+            if format_spec:
+                raise ValueError(
+                    f"Format specifier {format_spec} given, but {type(value)} does not"
+                    " define __html_format__. A class that defines __html__ must define"
+                    " __html_format__ to work with format specifiers."
+                )
+            rv = value.__html__()
+        else:
+            # We need to make sure the format spec is str here as
+            # otherwise the wrong callback methods are invoked.
+            rv = super().format_field(value, str(format_spec))
+        return str(self.escape(rv))
+
+class _MarkupEscapeHelper:
+    """Helper for :meth:`Markup.__mod__`."""
+
+    __slots__ = ("obj", "escape")
+
+    def __init__(self, obj: t.Any, escape: _TPEscape) -> None:
+        self.obj: t.Any = obj
+        self.escape: _TPEscape = escape
+
+    def __getitem__(self, key: t.Any, /) -> te.Self:
+        return self.__class__(self.obj[key], self.escape)
+
+    def __str__(self, /) -> str:
+        return str(self.escape(self.obj))
+
+    def __repr__(self, /) -> str:
+        return str(self.escape(repr(self.obj)))
+
+    def __int__(self, /) -> int:
+        return int(self.obj)
+
+    def __float__(self, /) -> float:
+        return float(self.obj)
+
+# ===== FILE: src/markupsafe/_native.py =====
+def _escape_inner(s: str, /) -> str:
+    return (
+        s.replace("&", "&amp;")
+        .replace("<", "&lt;")
+        .replace(">", "&gt;")
+        .replace("'", "&#39;")
+        .replace('"', "&#34;")
+    )
+
+# ===== FILE: .github/ISSUE_TEMPLATE/bug-report.md =====
+---
+name: Bug report
+about: Report a bug in MarkupSafe (not other projects which depend on MarkupSafe)
+---
+
+<!--
+This issue tracker is a tool to address bugs in MarkupSafe itself. Please use
+GitHub Discussions or the Pallets Discord for questions about your own code.
+
+Replace this comment with a clear outline of what the bug is.
+-->
+
+<!--
+Describe how to replicate the bug.
+
+Include a minimal reproducible example that demonstrates the bug.
+Include the full traceback if there was an exception.
+-->
+
+<!--
+Describe the expected behavior that should have happened but didn't.
+-->
+
+Environment:
+
+- Python version:
+- MarkupSafe version:
+
+# ===== FILE: .github/ISSUE_TEMPLATE/feature-request.md =====
+---
+name: Feature request
+about: Suggest a new feature for MarkupSafe
+---
+
+<!--
+Replace this comment with a description of what the feature should do.
+Include details such as links to relevant specs or previous discussions.
+-->
+
+<!--
+Replace this comment with an example of the problem which this feature
+would resolve. Is this problem solvable without changes to MarkupSafe?
+-->
+
+# ===== FILE: .github/pull_request_template.md =====
+<!--
+Before opening a PR, open a ticket describing the issue or feature the
+PR will address. An issue is not required for fixing typos in
+documentation, or other simple non-code changes.
+
+Replace this comment with a description of the change. Describe how it
+addresses the linked ticket.
+-->
+
+<!--
+Link to relevant issues or previous PRs, one per line. Use "fixes" to
+automatically close an issue.
+
+fixes #<issue number>
+-->
+
+<!--
+Ensure each step in CONTRIBUTING.rst is complete, especially the following:
+
+- Add tests that demonstrate the correct behavior of the change. Tests
+  should fail without the change.
+- Add or update relevant docs, in the docs folder and in code.
+- Add an entry in CHANGES.rst summarizing the change and linking to the issue.
+- Add `.. versionchanged::` entries in any relevant code docs.
+-->
+
+# ===== FILE: .pytest_cache/README.md =====
+# pytest cache directory #
+
+This directory contains data from the pytest's cache plugin,
+which provides the `--lf` and `--ff` options, as well as the `cache` fixture.
+
+**Do not** commit this to version control.
+
+See [the docs](https://docs.pytest.org/en/stable/how-to/cache.html) for more information.
+
+# ===== FILE: LICENSE.txt =====
+Copyright 2010 Pallets
+
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions are
+met:
+
+1.  Redistributions of source code must retain the above copyright
+    notice, this list of conditions and the following disclaimer.
+
+2.  Redistributions in binary form must reproduce the above copyright
+    notice, this list of conditions and the following disclaimer in the
+    documentation and/or other materials provided with the distribution.
+
+3.  Neither the name of the copyright holder nor the names of its
+    contributors may be used to endorse or promote products derived from
+    this software without specific prior written permission.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+"AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
+PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED
+TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+# ===== FILE: README.md =====
+<div align="center"><img src="https://raw.githubusercontent.com/pallets/markupsafe/refs/heads/stable/docs/_static/markupsafe-name.svg" alt="" height="150"></div>
+
+# MarkupSafe
+
+MarkupSafe implements a text object that escapes characters so it is
+safe to use in HTML and XML. Characters that have special meanings are
+replaced so that they display as the actual characters. This mitigates
+injection attacks, meaning untrusted user input can safely be displayed
+on a page.
+
+## Examples
+
+```pycon
+>>> from markupsafe import Markup, escape
+
+>>> # escape replaces special characters and wraps in Markup
+>>> escape("<script>alert(document.cookie);</script>")
+Markup('&lt;script&gt;alert(document.cookie);&lt;/script&gt;')
+
+>>> # wrap in Markup to mark text "safe" and prevent escaping
+>>> Markup("<strong>Hello</strong>")
+Markup('<strong>hello</strong>')
+
+>>> escape(Markup("<strong>Hello</strong>"))
+Markup('<strong>hello</strong>')
+
+>>> # Markup is a str subclass
+>>> # methods and operators escape their arguments
+>>> template = Markup("Hello <em>{name}</em>")
+>>> template.format(name='"World"')
+Markup('Hello <em>&#34;World&#34;</em>')
+```
+
+## Donate
+
+The Pallets organization develops and supports MarkupSafe and other
+popular packages. In order to grow the community of contributors and
+users, and allow the maintainers to devote more time to the projects,
+[please donate today][].
+
+[please donate today]: https://palletsprojects.com/donate
+
+## Contributing
+
+See our [detailed contributing documentation][contrib] for many ways to
+contribute, including reporting issues, requesting features, asking or answering
+questions, and making PRs.
+
+[contrib]: https://palletsprojects.com/contributing/
+
+# ===== FILE: bench.py =====
+import subprocess
+import sys
+
+for name, s in (
+    ("short escape", '"<strong>Hello, World!</strong>"'),
+    ("long escape", '"Hello, World!" * 1000'),
+    ("short plain", '"Hello, World!"'),
+    ("long plain", '"Hello, World!" * 1000'),
+    ("long suffix", '"<strong>Hello, World!</strong>" + "x" * 100_000'),
+):
+    for mod in "native", "speedups":
+        subprocess.run(
+            [
+                sys.executable,
+                "-m",
+                "pyperf",
+                "timeit",
+                "--name",
+                f"{name} {mod}",
+                "-s",
+                (
+                    "import markupsafe\n"
+                    f"from markupsafe._{mod} import _escape_inner\n"
+                    "markupsafe._escape_inner = _escape_inner\n"
+                    "from markupsafe import escape\n"
+                    f"s = {s}"
+                ),
+                "escape(s)",
+            ]
+        )
+
+# ===== FILE: docs/conf.py =====
+from pallets_sphinx_themes import get_version
+from pallets_sphinx_themes import ProjectLink
+
+# Project --------------------------------------------------------------
+
+project = "MarkupSafe"
+copyright = "2010 Pallets"
+author = "Pallets"
+release, version = get_version("MarkupSafe")
+
+# General --------------------------------------------------------------
+
+default_role = "code"
+extensions = [
+    "sphinx.ext.autodoc",
+    "sphinx.ext.extlinks",
+    "sphinx.ext.intersphinx",
+    "sphinxcontrib.log_cabinet",
+    "pallets_sphinx_themes",
+]
+autodoc_member_order = "bysource"
+autodoc_typehints = "description"
+autodoc_preserve_defaults = True
+extlinks = {
+    "issue": ("https://github.com/pallets/markupsafe/issues/%s", "#%s"),
+    "pr": ("https://github.com/pallets/markupsafe/pull/%s", "#%s"),
+}
+intersphinx_mapping = {
+    "python": ("https://docs.python.org/3/", None),
+}
+
+# HTML -----------------------------------------------------------------
+
+html_theme = "jinja"
+html_theme_options = {"index_sidebar_logo": False}
+html_context = {
+    "project_links": [
+        ProjectLink("Donate", "https://palletsprojects.com/donate"),
+        ProjectLink("PyPI Releases", "https://pypi.org/project/MarkupSafe/"),
+        ProjectLink("Source Code", "https://github.com/pallets/markupsafe/"),
+        ProjectLink("Issue Tracker", "https://github.com/pallets/markupsafe/issues/"),
+        ProjectLink("Chat", "https://discord.gg/pallets"),
+    ]
+}
+html_sidebars = {
+    "index": ["project.html", "localtoc.html", "searchbox.html", "ethicalads.html"],
+    "**": ["localtoc.html", "relations.html", "searchbox.html", "ethicalads.html"],
+}
+singlehtml_sidebars = {"index": ["project.html", "localtoc.html", "ethicalads.html"]}
+html_static_path = ["_static"]
+html_favicon = "_static/markupsafe-icon.svg"
+html_logo = "_static/markupsafe-logo.svg"
+html_title = f"MarkupSafe Documentation ({version})"
+html_show_sourcelink = False
+
+# ===== FILE: pyproject.toml =====
+[project]
+name = "MarkupSafe"
+version = "3.1.0.dev"
+description = "Safely add untrusted strings to HTML/XML markup."
+readme = "README.md"
+license = "BSD-3-Clause"
+license-files = ["LICENSE.txt"]
+maintainers = [{name = "Pallets", email = "contact@palletsprojects.com"}]
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Environment :: Web Environment",
+    "Intended Audience :: Developers",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python",
+    "Topic :: Internet :: WWW/HTTP :: Dynamic Content",
+    "Topic :: Text Processing :: Markup :: HTML",
+    "Typing :: Typed",
+]
+requires-python = ">=3.11"
+
+[project.urls]
+Donate = "https://palletsprojects.com/donate"
+Documentation = "https://markupsafe.palletsprojects.com/"
+Changes = "https://markupsafe.palletsprojects.com/page/changes/"
+Source = "https://github.com/pallets/markupsafe/"
+Chat = "https://discord.gg/pallets"
+
+[dependency-groups]
+dev = [
+    "ruff",
+    "tox",
+    "tox-uv",
+]
+docs = [
+    "pallets-sphinx-themes",
+    "sphinx",
+    "sphinxcontrib-log-cabinet",
+]
+docs-auto = [
+    "sphinx-autobuild",
+]
+gha-update = [
+    "gha-update ; python_full_version >= '3.12'",
+]
+pre-commit = [
+    "pre-commit",
+    "pre-commit-uv",
+]
+tests = [
+    "pytest",
+    "pytest-run-parallel; python_full_version >= '3.13'",
+]
+typing = [
+    "mypy",
+    "pyright",
+    "pytest",
+]
+
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[tool.uv]
+default-groups = ["dev", "pre-commit", "tests", "typing"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+filterwarnings = [
+    "error",
+]
+markers = [
+    # Needed when pytest-run-parallel is not installed
+    "thread_unsafe: mark test as not safe to run in multiple threads",
+]
+[tool.coverage.run]
+branch = true
+source = ["markupsafe", "tests"]
+
+[tool.coverage.paths]
+source = ["src", "*/site-packages"]
+
+[tool.coverage.report]
+exclude_also = [
+    "if t.TYPE_CHECKING",
+    "raise NotImplementedError",
+    ": \\.{3}",
+]
+
+[tool.mypy]
+python_version = "3.11"
+files = ["src", "tests"]
+show_error_codes = true
+pretty = true
+strict = true
+
+[tool.ruff]
+src = ["src"]
+fix = true
+show-fixes = true
+output-format = "full"
+
+[tool.ruff.lint]
+select = [
+    "B",  # flake8-bugbear
+    "E",  # pycodestyle error
+    "F",  # pyflakes
+    "I",  # isort
+    "UP",  # pyupgrade
+    "W",  # pycodestyle warning
+]
+ignore = [
+    "UP038",  # keep isinstance tuple
+]
+
+[tool.ruff.lint.isort]
+force-single-line = true
+order-by-type = false
+
+[tool.gha-update]
+tag-only = [
+    "slsa-framework/slsa-github-generator",
+]
+
+[tool.tox]
+env_list = [
+    "py3.15", "py3.15t", "parallel",
+    "py3.14", "py3.13", "py3.12", "py3.11",
+    "pypy3.11",
+    "style",
+    "typing",
+    "docs",
+]
+
+[tool.tox.env_run_base]
+description = "pytest on latest dependency versions"
+runner = "uv-venv-lock-runner"
+package = "wheel"
+wheel_build_env = ".pkg"
+constrain_package_deps = true
+use_frozen_constraints = true
+dependency_groups = ["tests"]
+commands = [[
+    "pytest", "-v", "--tb=short", "--basetemp={env_tmp_dir}",
+    {replace = "posargs", default = [], extend = true},
+]]
+
+[tool.tox.env.parallel]
+description = "check for free threading issues"
+base_python = ["3.15t"]
+commands = [[
+    "pytest", "-v", "--tb=short", "--basetemp=env_tmp_dir",
+    "--parallel-threads=8",
+    {replace = "posargs", default = [], extend = true},
+]]
+
+[tool.tox.env.style]
+description = "run all pre-commit hooks on all files"
+dependency_groups = ["pre-commit"]
+skip_install = true
+commands = [["pre-commit", "run", "--all-files"]]
+
+[tool.tox.env.typing]
+description = "run static type checkers"
+dependency_groups = ["typing"]
+commands = [
+    ["mypy"],
+]
+
+[tool.tox.env.docs]
+description = "build docs"
+dependency_groups = ["docs"]
+commands = [["sphinx-build", "-E", "-W", "-b", "dirhtml", "docs", "docs/_build/dirhtml"]]
+
+[tool.tox.env.docs-auto]
+description = "continuously rebuild docs and start a local server"
+dependency_groups = ["docs", "docs-auto"]
+commands = [["sphinx-autobuild", "-W", "-b", "dirhtml", "--watch", "src", "docs", "docs/_build/dirhtml"]]
+
+[tool.tox.env.update-actions]
+description = "update GitHub Actions pins"
+labels = ["update"]
+dependency_groups = ["gha-update"]
+skip_install = true
+commands = [["gha-update"]]
+
+[tool.tox.env.update-pre_commit]
+description = "update pre-commit pins"
+labels = ["update"]
+dependency_groups = ["pre-commit"]
+skip_install = true
+commands = [["pre-commit", "autoupdate", "--freeze", "-j4"]]
+
+[tool.tox.env.update-requirements]
+description = "update uv lock"
+labels = ["update"]
+dependency_groups = []
+no_default_groups = true
+skip_install = true
+commands = [["uv", "lock", {replace = "posargs", default = ["-U"], extend = true}]]
+
+[tool.cibuildwheel]
+build-frontend = "build[uv]"
+
+[[tool.cibuildwheel.overrides]]
+select = "*-musllinux_ppc64le"
+# uv is not available
+build-frontend = "build"
+
+[tool.cibuildwheel.linux]
+# overridden in workflow for parallel envs
+archs = ["x86_64", "aarch64", "armv7l", "ppc64le", "riscv64"]
+
+[tool.cibuildwheel.macos]
+archs = ["x86_64", "arm64"]
+
+[tool.cibuildwheel.windows]
+# overridden in workflow for parallel envs
+archs = ["AMD64", "ARM64", "x86"]
+
+[tool.cibuildwheel.ios]
+archs = ["arm64_iphoneos", "arm64_iphonesimulator", "x86_64_iphonesimulator"]
+build-frontend = "build"
+
+[tool.cibuildwheel.android]
+archs = ["arm64_v8a", "x86_64"]
+build-frontend = "build"
+
+# ===== FILE: setup.py =====
+import os
+import platform
+import sys
+
+from setuptools import Extension
+from setuptools import setup
+from setuptools.command.build_ext import build_ext
+from setuptools.errors import CCompilerError
+from setuptools.errors import ExecError
+from setuptools.errors import PlatformError
+
+ext_modules = [Extension("markupsafe._speedups", ["src/markupsafe/_speedups.c"])]
+
+class BuildFailed(Exception):
+    pass
+
+class ve_build_ext(build_ext):
+    """This class allows C extension building to fail."""
+
+    def run(self):
+        try:
+            super().run()
+        except PlatformError as e:
+            raise BuildFailed() from e
+
+    def build_extension(self, ext):
+        try:
+            super().build_extension(ext)
+        except (CCompilerError, ExecError, PlatformError) as e:
+            raise BuildFailed() from e
+        except ValueError as e:
+            # this can happen on Windows 64 bit, see Python issue 7511
+            if "'path'" in str(sys.exc_info()[1]):  # works with Python 2 and 3
+                raise BuildFailed() from e
+            raise
+
+def run_setup(with_binary):
+    setup(
+        cmdclass={"build_ext": ve_build_ext},
+        ext_modules=ext_modules if with_binary else [],
+    )
+
+def show_message(*lines):
+    print("=" * 74)
+    for line in lines:
+        print(line)
+    print("=" * 74)
+
+supports_speedups = platform.python_implementation() not in {
+    "PyPy",
+    "Jython",
+    "GraalVM",
+}
+
+if os.environ.get("CIBUILDWHEEL", "0") == "1" and supports_speedups:
+    run_setup(True)
+elif supports_speedups:
+    try:
+        run_setup(True)
+    except BuildFailed:
+        show_message(
+            "WARNING: The C extension could not be compiled, speedups are not enabled.",
+            "Failure information, if any, is above.",
+            "Retrying the build without the C extension now.",
+        )
+        run_setup(False)
+        show_message(
+            "WARNING: The C extension could not be compiled, speedups are not enabled.",
+            "Plain-Python build succeeded.",
+        )
+else:
+    run_setup(False)
+    show_message(
+        "WARNING: C extensions are not supported on this Python"
+        " platform, speedups are not enabled.",
+        "Plain-Python build succeeded.",
+    )
+
+# ===== FILE: tests/__init__.py =====
+
+# ===== FILE: tests/conftest.py =====
+from __future__ import annotations
+
+import sys
+import typing as t
+from types import ModuleType
+
+import pytest
+
+import markupsafe
+from markupsafe import _native
+
+try:
+    from markupsafe import _speedups
+except ImportError:
+    _speedups = None  # type: ignore
+
+def pytest_report_header() -> list[str]:
+    """Return a list of strings to be displayed in the header of the report."""
+    if sys.version_info >= (3, 13):
+        return [f"Free-threaded: {not sys._is_gil_enabled()}"]
+
+    return []
+
+@pytest.fixture(
+    scope="session",
+    autouse=True,
+    params=(
+        _native,
+        pytest.param(
+            _speedups,
+            marks=pytest.mark.skipif(_speedups is None, reason="speedups unavailable"),
+        ),
+    ),
+)
+def _mod(request: pytest.FixtureRequest) -> None:
+    mod = t.cast(ModuleType, request.param)
+    markupsafe._escape_inner = mod._escape_inner  # type: ignore[attr-defined]
+
+# ===== FILE: tests/test_escape.py =====
+from __future__ import annotations
+
+import typing as t
+
+import pytest
+
+from markupsafe import escape
+from markupsafe import Markup
+
+@pytest.mark.parametrize(
+    ("value", "expect"),
+    (
+        # empty
+        ("", ""),
+        # ascii
+        ("abcd&><'\"efgh", "abcd&amp;&gt;&lt;&#39;&#34;efgh"),
+        ("&><'\"efgh", "&amp;&gt;&lt;&#39;&#34;efgh"),
+        ("abcd&><'\"", "abcd&amp;&gt;&lt;&#39;&#34;"),
+        # 2 byte
+        ("こんにちは&><'\"こんばんは", "こんにちは&amp;&gt;&lt;&#39;&#34;こんばんは"),
+        ("&><'\"こんばんは", "&amp;&gt;&lt;&#39;&#34;こんばんは"),
+        ("こんにちは&><'\"", "こんにちは&amp;&gt;&lt;&#39;&#34;"),
+        # 4 byte
+        (
+            "\U0001f363\U0001f362&><'\"\U0001f37a xyz",
+            "\U0001f363\U0001f362&amp;&gt;&lt;&#39;&#34;\U0001f37a xyz",
+        ),
+        ("&><'\"\U0001f37a xyz", "&amp;&gt;&lt;&#39;&#34;\U0001f37a xyz"),
+        ("\U0001f363\U0001f362&><'\"", "\U0001f363\U0001f362&amp;&gt;&lt;&#39;&#34;"),
+    ),
+)
+def test_escape(value: str, expect: str) -> None:
+    assert escape(value) == Markup(expect)
+
+class Proxy:
+    def __init__(self, value: t.Any) -> None:
+        self.__value = value
+
+    @property  # type: ignore[misc]
+    def __class__(self) -> type[t.Any]:
+        # Make o.__class__ and isinstance(o, str) see the proxied object.
+        return self.__value.__class__  # type: ignore[no-any-return]
+
+    def __str__(self) -> str:
+        return str(self.__value)
+
+def test_proxy() -> None:
+    """Handle a proxy object that pretends its __class__ is str."""
+    p = Proxy("test")
+    assert p.__class__ is str
+    assert isinstance(p, str)
+    assert escape(p) == Markup("test")
+
+class ReferenceStr(str):
+    def __str__(self) -> str:
+        # This should return a str, but it returns the subclass instead.
+        return self
+
+def test_subclass() -> None:
+    """Handle if str(o) does not return a plain str."""
+    s = ReferenceStr("test")
+    assert isinstance(s, str)
+    assert escape(s) == Markup("test")
+
+# ===== FILE: tests/test_exception_custom_html.py =====
+from __future__ import annotations
+
+import pytest
+
+from markupsafe import escape
+
+class CustomHtmlThatRaises:
+    def __html__(self) -> str:
+        raise ValueError(123)
+
+def test_exception_custom_html() -> None:
+    """Checks whether exceptions in custom __html__ implementations are
+    propagated correctly.
+
+    There was a bug in the native implementation at some point:
+    https://github.com/pallets/markupsafe/issues/108
+    """
+    obj = CustomHtmlThatRaises()
+
+    with pytest.raises(ValueError):
+        escape(obj)
+
+# ===== FILE: tests/test_ext_init.py =====
+import sys
+
+import pytest
+
+import markupsafe
+
+try:
+    from markupsafe import _speedups
+except ImportError:
+    _speedups = None  # type: ignore[assignment]
+
+@pytest.mark.thread_unsafe(reason="Tampers with sys.modules")
+@pytest.mark.skipif(_speedups is None, reason="speedups unavailable")
+def test_ext_init() -> None:
+    """Test that the extension module uses multi-phase init by checking that
+    uncached imports result in different module objects.
+    """
+    if markupsafe._escape_inner is not _speedups._escape_inner:  # type: ignore[attr-defined]
+        pytest.skip("speedups not active")
+
+    for k in [k for k in sys.modules if k.startswith("markupsafe")]:
+        del sys.modules[k]
+
+    import markupsafe._speedups as new
+
+    assert _speedups.__dict__ != new.__dict__
+    assert _speedups._escape_inner is not new._escape_inner
+
+# ===== FILE: tests/test_leak.py =====
+from __future__ import annotations
+
+import gc
+
+import pytest
+
+from markupsafe import escape
+
+@pytest.mark.thread_unsafe(reason="Tests gc.get_objects()")
+def test_markup_leaks() -> None:
+    counts = set()
+    # Try to start with a "clean" count. Works for PyPy but not 3.13 JIT.
+    gc.collect()
+
+    for _ in range(20):
+        for _ in range(1000):
+            escape("foo")
+            escape("<foo>")
+            escape("foo")
+            escape("<foo>")
+
+        counts.add(len(gc.get_objects()))
+
+    # Some implementations, such as PyPy and Python 3.13 JIT, end up with 2
+    # counts rather than one. Presumably this is internals stabilizing. A leak
+    # would presumably have a different count every loop.
+    assert len(counts) < 3
+
+# ===== FILE: tests/test_markupsafe.py =====
+from __future__ import annotations
+
+import typing as t
+
+import pytest
+
+from markupsafe import escape
+from markupsafe import escape_silent
+from markupsafe import Markup
+from markupsafe import soft_str
+
+def test_adding() -> None:
+    unsafe = '<script type="application/x-some-script">alert("foo");</script>'
+    safe = Markup("<em>username</em>")
+    assert unsafe + safe == str(escape(unsafe)) + str(safe)
+
+@pytest.mark.parametrize(
+    ("template", "data", "expect"),
+    (
+        ("<em>%s</em>", "<bad user>", "<em>&lt;bad user&gt;</em>"),
+        (
+            "<em>%(username)s</em>",
+            {"username": "<bad user>"},
+            "<em>&lt;bad user&gt;</em>",
+        ),
+        ("%i", 3.14, "3"),
+        ("%.2f", 3.14, "3.14"),
+    ),
+)
+def test_string_interpolation(template: str, data: t.Any, expect: str) -> None:
+    assert Markup(template) % data == expect
+
+def test_type_behavior() -> None:
+    assert type(Markup("foo") + "bar") is Markup
+    x = Markup("foo")
+    assert x.__html__() is x
+
+def test_ht

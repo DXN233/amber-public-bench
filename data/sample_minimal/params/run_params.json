@@ -1,0 +1,15 @@
+{
+  "method_id": "amber-public-bench-sample-minimal",
+  "note": "Tiny replaceable demo dataset. Not the fair-r2 reference.",
+  "system_prompt": "你是严谨助手。只依据给定上下文回答；上下文未覆盖则答「无法定位」。不要编造数字或 API。回答尽量短。",
+  "endpoint_upstream_default": "https://api.deepseek.com/chat/completions",
+  "model_requested": "deepseek-chat",
+  "temperature": 0,
+  "max_tokens": 200,
+  "repeats": 1,
+  "arms": [
+    "A_plain",
+    "B_fullctx",
+    "C_amber"
+  ]
+}

@@ -1,0 +1,2 @@
+# ===== FILE: demo/constants.py =====
+WINDOW_SPAN_VERIFY = 1600

@@ -1,0 +1,8 @@
+# AMBER 本轮注入（模拟窄窗）
+
+## RESIDENT
+- WINDOW_FALLBACK_HEAD约定：开工约定：WINDOW_FALLBACK_HEAD 必须为 800；锚点未命中时取文件头部的跨度；禁止擅自加大
+- WINDOW_FALLBACK_HEAD 约定值=800；PLACEHOLDER ops key 必须拒绝。
+
+## LEDGER（命中）
+| WINDOW_FALLBACK_HEAD约定@workbench | engine/constants.py:行8-行8 | 开工约定：WINDOW_FALLBACK_HEAD 必须为 800；锚点未命中时取文件头部的跨度；禁止擅自加大 | state | amber-engine |

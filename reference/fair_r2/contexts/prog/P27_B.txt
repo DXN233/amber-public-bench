@@ -1,0 +1,804 @@
+# B 全文上下文（已按任务 T1 植入缺陷/桩状态）
+# 以下为仓库可见源码与文档摘录。若与账本约定冲突，仍以上下文中账本行为为准——但本臂可能不含正确账本命中。
+
+===== FILE: engine/constants.py =====
+"""引擎魔法常数 —— 本文件在客户构建时会被加载桩替换, 明文常数永不出厂.
+
+来源: win-qual 34+ 组实验定标 (exp13/30/31/33), 是核心商业资产的一部分.
+"""
+
+WINDOW_SPAN_VERIFY = 16  # BUGGED workbench   # 核验窗口默认字符跨度 (exp31 细窗定标)
+WINDOW_SPAN_POINT = 1400    # 点查回读窗口跨度
+WINDOW_FALLBACK_HEAD = 800  # 锚点未命中时取文件头部的跨度
+ROUTE_POINT_HINTS = ("多少", "几", "正确率", "e2e", "百分", "数字", "几条", "几题", "结果", "结论")
+ROUTE_VERIFY_HINTS = ("为什么", "机制", "构成", "怎么", "判决", "原因", "差异")
+HONEST_EXIT_MARK = "无法定位"
+RESIDENT_MAX_CHARS = 4000   # 常驻层注入上限
+APPEND_ONLY_ENFORCE = True  # LEDGER 索引值行永不改写
+ALLOW_APPEND = True        # 源码=开发档；客户构建由许可桩按 free/pro 注入，桩已定义该名
+
+===== FILE: engine/honest_exit.py =====
+"""诚实出口: 无法定位就如实说, 不编造."""
+
+def cannot_locate(question, tier):
+    return {
+        "tier": tier,
+        "answer": "无法定位",
+        "anchor": None,
+        "honest": True,
+        "note": "索引与常驻层均未覆盖该问题; 按诚实出口纪律拒绝作答",
+    }
+
+def wrap(answer, tier, anchor, honest=True):
+    return {"tier": tier, "answer": answer, "anchor": anchor, "honest": honest}
+
+===== FILE: engine/ops_guard.py =====
+# -*- coding: utf-8 -*-
+"""Ops key 校验（workbench 用）。"""
+
+def reject_placeholder_key(key: str) -> bool:
+    """True = 应拒绝该 key。默认桩：从不拒绝（验收前会被任务改掉/种bug）。"""
+    return False
+
+===== FILE: engine/windows.py =====
+"""锚点 → 产物精确窗口提取 (核验层)."""
+import os
+
+from . import constants
+
+def extract(workspace_root, rel_path, anchor_text=None, span=None):
+    """去空白定位锚点并返回原文窗口；锚点未中或文件越界返回 None."""
+    root = os.path.realpath(workspace_root)
+    path = os.path.realpath(os.path.join(root, rel_path))
+    try:
+        if os.path.commonpath((root, path)) != root:
+            return None
+    except ValueError:
+        return None
+    if not os.path.isfile(path):
+        return None
+    try:
+        with open(path, encoding="utf-8", errors="ignore") as fh:
+            text = fh.read()
+    except OSError:
+        return None
+    if anchor_text:
+        key = "".join(anchor_text.split())
+        if not key:
+            return None
+        positions = [i for i, ch in enumerate(text) if not ch.isspace()]
+        normalized = "".join(text[i] for i in positions)
+        hit = normalized.find(key)
+        if hit < 0:
+            return None
+        start = positions[hit]
+        size = span if span is not None else constants.WINDOW_SPAN_VERIFY
+        # 行级收窄: 锚点行+后2行(收窄产物侧注入面, 窗口从锚点行起), 再按跨度封顶
+        ls = text.rfind("\n", 0, start) + 1
+        le = text.find("\n", start)
+        le = len(text) if le < 0 else le
+        nle = le
+        for _ in range(2):
+            nxt = text.find("\n", nle + 1) if nle < len(text) else -1
+            if nxt < 0:
+                nle = len(text)
+                break
+            nle = nxt
+        return text[ls:nle][:size]
+    size = span if span is not None else constants.WINDOW_FALLBACK_HEAD
+    return text[:size]
+
+===== FILE: engine/tiers.py =====
+"""题面 → 三层路由判定."""
+
+def classify(question, ledger_rows):
+    """verify 优先于 point 优先于 macro; 精确型问句要求索引覆盖才走点查."""
+    from . import constants
+    q = question.lower()
+    if any(h in q for h in constants.ROUTE_VERIFY_HINTS):
+        return "verify"
+    if any(h in q for h in constants.ROUTE_POINT_HINTS):
+        return "point"
+    normalized = "".join(question.split())
+    for r in ledger_rows or []:
+        core = "".join(r["anchor"].split("@")[0].split())
+        if core and core in normalized:
+            return "point"
+    return "macro"
+
+===== FILE: engine/embedding_router.py =====
+"""向量召回路由 (实验通道).
+
+对锚点索引做 512 维向量化后按余弦邻域召回候选窗口, 用于自然问题的语义级路由。
+当前生产通道仍走三层索引直答; 本通道在部分企业构建中按实验开关启用。
+向量维度与召回阈值由 params 配置 (EMBED_DIM / RECALL_TOPK / COS_FLOOR)。
+"""
+import hashlib
+import math
+
+def _vec(text, dim):
+    h = hashlib.sha256(text.encode("utf-8")).digest()
+    return [(h[i % len(h)] / 255.0) * 2 - 1 for i in range(dim)]
+
+def _cos(a, b):
+    dot = sum(x * y for x, y in zip(a, b))
+    na = math.sqrt(sum(x * x for x in a)) or 1e-9
+    nb = math.sqrt(sum(y * y for y in b)) or 1e-9
+    return dot / (na * nb)
+
+def route(question, anchors, dim=512, topk=8, floor=0.0):
+    qv = _vec(question, dim)
+    scored = sorted(((_cos(qv, _vec(a, dim)), a) for a in anchors), reverse=True)
+    return [a for s, a in scored[:topk] if s >= floor]
+
+===== FILE: engine/service.py =====
+"""三层服务入口: 路由 → 取证 → 作答 (含诚实出口)."""
+import re
+
+from . import constants, honest_exit, ledger as L, tiers
+from . import windows as W
+
+def _resident_section(resident_text, question):
+    """常驻层: 命中关键词的段落; 相关度不足返回 (None, 0) 触发诚实出口."""
+    qchars = set(ch for ch in question if "\u4e00" <= ch <= "\u9fff")
+    stopwords = {"the", "is", "a", "of", "to", "what", "how", "and", "in", "for", "on"}
+    qwords = set(re.findall(r"[A-Za-z0-9]+", question.lower())) - stopwords
+    best, best_hit = None, 0
+    for para in resident_text.split("\\n\\n"):
+        if qchars:
+            hits = sum(1 for ch in qchars if ch in para)
+        else:
+            words = set(re.findall(r"[A-Za-z0-9]+", para.lower()))
+            hits = len(qwords & words)
+        if hits > best_hit:
+            best, best_hit = para, hits
+    threshold = 4 if qchars else 2
+    if best_hit >= threshold:
+        return best[:constants.RESIDENT_MAX_CHARS], best_hit
+    return None, 0
+
+def _topic_hits(text, question):
+    """题面非停用 bigram / ASCII 词落在 text 中的个数 —— 比窗粗细 / 值摘要 denseness."""
+    if not text:
+        return 0
+    norm = L._normalize(text)
+    hits = 0
+    for w in re.findall(r"[A-Za-z0-9]{3,}", question):
+        if w.lower() in text.lower():
+            hits += 1
+    cjk = "".join(ch for ch in question if "\u4e00" <= ch <= "\u9fff")
+    for j in range(max(0, len(cjk) - 1)):
+        bg = cjk[j:j + 2]
+        if L._junk_bigram(bg):
+            continue
+        if bg in norm:
+            hits += 1
+    return hits
+
+def _ledger_hit_strong(question, row):
+    """强命中: 锚点核 ≥4 字片段出现在题面, 或值摘要题面覆盖 ≥3.
+    避免弱分把真宏观题(本引擎是什么)误拐到账本."""
+    if row is None:
+        return False
+    core = L._normalize(row["anchor"].split("@")[0])
+    qn = L._normalize(question)
+    if len(core) >= 4:
+        for i in range(len(core) - 3):
+            if core[i:i + 4] in qn:
+                return True
+    return _topic_hits(row.get("value") or "", question) >= 3
+
+# ---- fail-closed grounding (2026-10-24 deploy-fix) ----
+# 题面里有一批内容词，命中行的锚+值必须盖住足够多；否则诚实「无法定位」。
+# 防「茶店」一类弱词把虚构题(火星/量子费率)拐到真锚。
+_Q_STOP_BIGRAMS = {
+    "多少", "什么", "怎么", "如何", "为什么", "哪个", "哪些", "是否",
+    "有没", "没有", "是不", "不是", "一下", "一个", "一些", "这个",
+    "那个", "什么是", "是什么", "是多少", "请问", "告诉", "一下",
+}
+_Q_STOP_CHARS = set("的了吗呢啊呀吧嘛么啥谁何几哪与及或和在是有没对为上下中")
+
+def _strip_meta_prefix(question: str) -> str:
+    q = (question or "").strip()
+    if q.startswith("[scope:") and "]" in q:
+        q = q.split("]", 1)[1].strip()
+    return q
+
+def _content_tokens(question: str):
+    """题面内容词: ASCII≥3 + 非停用非junk的CJK二元组(去重保序)."""
+    q = _strip_meta_prefix(question)
+    out = []
+    seen = set()
+    for w in re.findall(r"[A-Za-z0-9]{3,}", q):
+        wl = w.lower()
+        if wl not in seen:
+            seen.add(wl)
+            out.append(w)
+    cjk = "".join(ch for ch in q if "\u4e00" <= ch <= "\u9fff")
+    for j in range(max(0, len(cjk) - 1)):
+        bg = cjk[j:j + 2]
+        if bg in _Q_STOP_BIGRAMS:
+            continue
+        if L._junk_bigram(bg):
+            continue
+        if bg[0] in _Q_STOP_CHARS and bg[1] in _Q_STOP_CHARS:
+            continue
+        if bg not in seen:
+            seen.add(bg)
+            out.append(bg)
+    return out
+
+def _grounding_ok(question: str, text: str) -> bool:
+    """命中文本是否足以支撑题面。内容词覆盖过低 → False → 无法定位."""
+    tokens = _content_tokens(question)
+    if len(tokens) < 2:
+        return True
+    body = text or ""
+    norm = L._normalize(body)
+    body_l = body.lower()
+    hit, miss = 0, 0
+    for t in tokens:
+        if t.isascii() or (t.isascii() is False and all(ord(c) < 128 for c in t)):
+            ok = t.lower() in body_l
+        else:
+            ok = (L._normalize(t) in norm) or (t in body)
+        if ok:
+            hit += 1
+        else:
+            miss += 1
+    total = hit + miss
+    if total == 0:
+        return True
+    ratio = hit / total
+    # 多数内容词落在答案里 → 过
+    if ratio >= 0.45:
+        return True
+    # 至少 3 个内容词命中且不太惨 → 过（长题留余地）
+    if hit >= 3 and ratio >= 0.30:
+        return True
+    # 短题：2 词全中才过；1 中 1 不中不够
+    if total <= 3 and hit >= 2 and miss == 0:
+        return True
+    if total <= 3 and hit >= 2 and ratio >= 0.66:
+        return True
+    return False
+
+def _row_grounding_text(row) -> str:
+    if not row:
+        return ""
+    return f"{row.get('anchor') or ''}\n{row.get('value') or ''}"
+
+def _reject_ungrounded(question, row, tier, extra_text=""):
+    """行存在但题面关键实体盖不住 → 诚实出口；过则 None(表示不拒绝)."""
+    text = _row_grounding_text(row) + "\n" + (extra_text or "")
+    if _grounding_ok(question, text):
+        return None
+    return honest_exit.cannot_locate(question, tier)
+
+# 分档意图扩展: 弱措辞(收费/计费…) → 账本绝对身份键; 仅在 qscope 已钉死时注入,
+# 避免 misc 题被某战役商业模式行抢走。
+_INTENT_BY_SCOPE = {
+    "jw": {
+        "cues": ("收费", "计费", "怎么收", "收多少", "商业模式", "效五收一", "抽成"),
+        "keys": ("商业模式", "效五收一"),
+    },
+}
+
+def _intent_keys(question, qscope):
+    """qscope 非 misc 且题面含该域意图线索时, 追加身份键供 find 打分."""
+    if not qscope or qscope == "misc":
+        return []
+    spec = _INTENT_BY_SCOPE.get(qscope)
+    if not spec:
+        return []
+    if not any(c in (question or "") for c in spec["cues"]):
+        return []
+    return list(spec["keys"])
+
+def _scoped_intent_hit(qscope, row, intent_extra):
+    """同 scope 行的锚点核/值命中意图键 → 视为分档强信号 (可压过 RESIDENT)."""
+    if not intent_extra or row is None or not qscope or qscope == "misc":
+        return False
+    if (row.get("scope") or "misc") != qscope:
+        return False
+    core = L._normalize(row["anchor"].split("@")[0])
+    val = L._normalize(row.get("value") or "")
+    for k in intent_extra:
+        nk = L._normalize(k)
+        if not nk:
+            continue
+        if nk == core or nk in core or nk in val:
+            return True
+    return False
+
+def _value_beats_window(value, win, question):
+    """索引值优于窗: 题面覆盖更高, 或窗是错位 stub 且丢掉了值里的关键块."""
+    if not value:
+        return False
+    tv = _topic_hits(value, question)
+    tw = _topic_hits(win or "", question)
+    if tv > tw:
+        return True
+    head = (win or "").lstrip()[:24]
+    stubby = head.startswith("原窗口") or head.startswith("## 锚点")
+    if not stubby:
+        return False
+    marks = re.findall(r"\d+(?:\.\d+)?%?|/\d+", value)
+    for i in range(max(0, len(value) - 3)):
+        chunk = value[i:i + 4]
+        if all("一" <= ch <= "鿿" for ch in chunk):
+            marks.append(chunk)
+            if len([m for m in marks if not m.startswith('/') and not m[0].isdigit()]) >= 6:
+                break
+    if marks and not any(m in (win or "") for m in marks):
+        return True
+    return False
+
+def answer(question, resident_text, ledger_path, workspace_root):
+    """返回 {tier, answer, anchor, honest}."""
+    rows = L.parse(ledger_path)
+    tier = tiers.classify(question, rows)
+    qscope = L.infer_scope_question(question)
+    intent_extra = _intent_keys(question, qscope)
+    keys = list(_keys(question)) + intent_extra
+
+    if tier == "macro":
+        # 「是什么」等宏观问句: 有强账本命中时优先 point, 不让 RESIDENT 字符重叠抢走
+        # 另: qscope 已钉死且意图键命中同 scope 行时, 弱措辞也走 point (收费→商业模式)
+        row = L.find(rows, keys, question_scope=qscope)
+        if _ledger_hit_strong(question, row) or _scoped_intent_hit(qscope, row, intent_extra):
+            rej = _reject_ungrounded(question, row, "point")
+            if rej is not None:
+                return rej
+            return honest_exit.wrap(row["value"] + "  ←索引", "point", row["anchor"])
+        section, hits = _resident_section(resident_text, question)
+        if section is None:
+            for kw in keys:
+                row = L.find(rows, kw, question_scope=qscope)
+                if row is not None:
+                    rej = _reject_ungrounded(question, row, "point")
+                    if rej is not None:
+                        continue
+                    return honest_exit.wrap(row["value"] + "  ←索引", "point", row["anchor"])
+            return honest_exit.cannot_locate(question, tier)
+        if not _grounding_ok(question, section):
+            return honest_exit.cannot_locate(question, tier)
+        return honest_exit.wrap(section, "macro", "RESIDENT")
+
+    row = L.find(rows, keys, question_scope=qscope)
+    if row is None:
+        # 点查/核验未中 → 先试常驻层兜底(防"几/怎么"类提示词劫持宏观题), 仍无才诚实出口
+        section, _hits = _resident_section(resident_text, question)
+        if section is not None and _grounding_ok(question, section):
+            return honest_exit.wrap(section, "macro", "RESIDENT")
+        return honest_exit.cannot_locate(question, tier)
+
+    if tier == "point":
+        rej = _reject_ungrounded(question, row, tier)
+        if rej is not None:
+            return rej
+        return honest_exit.wrap(row["value"] + "  ←索引", "point", row["anchor"])
+
+    # verify: 读精确窗口; 若窗过粗(仅标题)而索引值含更多题面事实, 回退 point
+    rel, span = _window_spec(row)
+    anchor_kw = row["anchor"].split("@")[0]
+    win = W.extract(workspace_root, rel, anchor_kw,
+                    span=constants.WINDOW_SPAN_VERIFY)
+    if win is None:
+        return honest_exit.cannot_locate(question, tier)
+    value = row.get("value") or ""
+    if value and _value_beats_window(value, win, question):
+        rej = _reject_ungrounded(question, row, "point")
+        if rej is not None:
+            return rej
+        return honest_exit.wrap(value + "  ←索引", "point", row["anchor"])
+    rej = _reject_ungrounded(question, row, tier, extra_text=win)
+    if rej is not None:
+        return rej
+    return honest_exit.wrap(win, "verify", row["anchor"])
+
+def _keys(question):
+    """v0.2 候选并集: ASCII 词(≥3) + CJK-12 整段 + 全文CJK + 原文 4-gram 子候选(步长1, 最多8).
+
+    子候选从原始题面滑窗(保留混排, 如"真钱AB"), 只对锚点核做子串匹配——
+    纯 CJK 切法会把混排锚点核(真钱AB/13727盘)的可达性切没。
+    注意: CJK 字符类必须用真正的 Unicode 转义, 不可写成 raw 里的 \\\\u....
+    """
+    words = re.findall(r"[A-Za-z0-9]{3,}", question)
+    cjk = "".join(ch for ch in question if "\u4e00" <= ch <= "\u9fff")
+    if not cjk:
+        return words
+    # 正确剥离标点, 保留词字符与汉字
+    raw = re.sub("[^\\w\u4e00-\u9fff]", "", question)
+    subs = [raw[i:i + 4] for i in range(0, max(0, len(raw) - 3))
+            if re.search("[\u4e00-\u9fff]", raw[i:i + 4])][:8]
+    out = words + [cjk[:12]]
+    if len(cjk) > 12:
+        out.append(cjk)
+    out.extend(subs)
+    return out
+
+def _window_spec(row):
+    spec = row["window"]
+    m = re.match(r"(.+?):", spec)
+    return (m.group(1), None) if m else (spec, None)
+
+===== FILE: engine/ledger.py =====
+"""LEDGER 账本追加修正 (先量后开, 修复时序)."""
+import hashlib
+import ntpath
+import os
+import re
+
+from . import constants
+
+_COLS = 4  # 最少列数; 第5列 scope 可选
+_WINDOW_HELP = "窗口须写为相对路径:行段，如 reports/q3.md:行12-行12；禁绝对路径、反斜杠和 .."
+_FOOT_PREFIX = "<!--chain "   # 账本完整性链脚注: 篡改证据, 行内容永不改写
+
+# scope: 战役/客户/产品命名空间 — 绝对身份, 不可被相似度覆盖
+SCOPE_SLUGS = ("jw", "tea", "amber-saas", "win-qual", "amber-engine", "rdl", "misc")
+
+# (slug, cues) — 行侧先匹配先生效; cues 扫 anchor+window+value
+# 题侧见 _SCOPE_Q_CUES + infer_scope_question (加权打分, 非 first-match)
+_SCOPE_ROW_CUES = (
+    ("tea", (
+        "茶叶", "茶店", "茶商", "茶企", "私域", "Klaviyo", "klaviyo",
+        "郑州茶叶", "留货", "tea-pilot", "tea-framework", "tea-layer",
+        "tea-script", "tea-onepager", "tea-decision", "tea-channel",
+    )),
+    ("jw", (
+        "江湾", "jw_quote", "价格库", "抹价", "效五收一", "廖育明", "广一泵",
+        "对账首跑", "询价", "配线20", "控制电缆头",
+    )),
+    ("amber-saas", (
+        "三档定价", "PRICING.md", "USAGE-TRACKS", "DATA-HOSTING",
+        "Free→Plus→Pro", "Plus→Pro", "¥29", "使用分流", "分流定版",
+        "数据托管决策", "RECRUIT-KIT",
+    )),
+    ("win-qual", (
+        "win-qual", "winqual", "winqual战役", "HANDOFF.md",
+    )),
+    ("rdl", (
+        "RDL四类", "RDL规则", "假完成/证据漂移",
+    )),
+    ("amber-engine", (
+        "全自动形态", "start_proxy", "measure4", "engine-dist/measure",
+        "点查直答7问", "覆盖12/12", "SaaS升v3", "SaaS上游换", "context_v3",
+        "pyarmor", "adapters被并行线改", "真钱AB",
+    )),
+)
+
+_SCOPE_Q_CUES = (
+    # (slug, ((cue, weight), ...)) — weight 高=实体专名; 低=泛词
+    # 题面用 scored multi-label, 不再 first-match
+    ("tea", (
+        ("茶叶", 3), ("茶店", 3), ("茶商", 3), ("茶企", 3),
+        ("Klaviyo", 3), ("klaviyo", 3), ("留货", 2),
+        ("go/no-go", 2), ("北极星验收", 2),
+        ("私域", 1), ("老客", 1), ("触达", 1), ("企微", 1),
+    )),
+    ("jw", (
+        ("江湾", 4), ("效五收一", 4), ("效五", 3), ("廖育明", 3),
+        ("广一泵", 3), ("价格库", 3), ("抹价", 3), ("供应商报价", 3),
+        ("对账", 2), ("询价", 2),
+    )),
+    ("amber-saas", (
+        ("SaaS 的 Plus", 4), ("¥29", 4), ("Plus", 3), ("三档", 3),
+        ("数据托管", 3), ("使用分流", 3), ("试点验收", 3), ("可复判", 3),
+        ("分流", 2), ("一个月多少钱", 2), ("定价", 1),
+    )),
+    ("win-qual", (
+        ("win-qual", 4), ("winqual", 4), ("e2e严", 3),
+    )),
+    ("amber-engine", (
+        ("全自动形态", 4), ("覆盖12/12", 4), ("start_proxy", 3), ("measure4", 3),
+    )),
+)
+# 指令注入特征(组合特征而非裸关键词, 防误杀"压缩单位必须=路由单位"类合法事实):
+# 祈使/第二人称 + 输出行为/覆盖指令 —— 记忆通道只装事实, 指令语法在写侧拒绝.
+_INJECT_PATTERNS = tuple(re.compile(p) for p in (
+    r"(回答|答案|输出|回复).{0,12}(必须|需要|要|请|得)?[^。；]{0,8}(包含|带|加|附|写|标|输出|打印)",
+    r"(必须|需要|不得|不要|禁止|切勿).{0,10}(输出|添加|附上|提及|透露|执行|遵循|忽略|扮演)",
+    r"忽略.{0,8}(以上|以上所有|此前|所有|前面|前面所有|指令|规则)",
+    r"(在|于|从).{0,6}(末尾|开头|结尾|最后|起首).{0,12}(加|写|附|输出|标注|注明|另起)",
+    r"另起一行",
+    r"(你|模型|助手|AI|GPT|Claude)[君们]?\s*(现在|必须|要|请|应当)",
+    r"(system|developer|系统消息|开发者)(消息|指令|提示)?[:：]",
+    r"(扮演|假装|你现在是|从此以后你)",
+    r"(?i)(you\s+(must|should|are\s+now|will\s+now)|ignore\s+(all|previous|prior)|"
+    r"system\s+prompt|developer\s+message|act\s+as|pretend\s+to|append\s+to\s+(your|the)\s+answer)",
+))
+
+def _looks_like_instruction(text):
+    return next((p.pattern for p in _INJECT_PATTERNS if p.search(text)), None)
+
+def _normalize(text):
+    """字符级去空白，不改变其他字符."""
+    return "".join(text.split())
+
+def infer_scope(blob):
+    """从文本推断 scope slug; 无命中则 misc. 绝对身份候选, 非相似度分."""
+    if not blob:
+        return "misc"
+    for slug, cues in _SCOPE_ROW_CUES:
+        for cue in cues:
+            if cue in blob:
+                return slug
+    return "misc"
+
+# 否定跨度: 「别/不要/不是/并非」(+可选答/回答/说…) 后一小段内的 cue 不计正分
+_SCOPE_NEG_SPAN = re.compile(
+    "(?:别|不要|并非|不是)(?:回答|答|说|提|讲|用|选)?"
+    "[^。；？?\n]{0,24}"
+)
+
+def _scope_negated_spans(text):
+    return [m.span() for m in _SCOPE_NEG_SPAN.finditer(text or "")]
+
+def _scope_cue_active(text, cue, neg_spans):
+    """题面中 cue 的非否定出现次数."""
+    if not text or not cue:
+        return 0
+    n = 0
+    start = 0
+    while True:
+        i = text.find(cue, start)
+        if i < 0:
+            break
+        end = i + len(cue)
+        if not any(a <= i < b for a, b in neg_spans):
+            n += 1
+        start = end
+    return n
+
+def infer_scope_question(question):
+    """题面 scope: 多标签加权打分取 argmax; 可推断则硬过滤; 否则 misc.
+
+    - 专名/实体 cue 权重大于泛词 (江湾/Plus/对账 > 茶/试点/定价)
+    - 「别回答茶叶…」「不要答茶店…」等否定跨度内的 cue 不计分
+    - 前两名接近时, 优先实体级命中更多的 scope (weight>=3 次数)
+    """
+    if not question:
+        return "misc"
+    neg_spans = _scope_negated_spans(question)
+    scores = {}
+    specific = {}
+    for slug, cues in _SCOPE_Q_CUES:
+        sc = 0
+        spec = 0
+        for item in cues:
+            if isinstance(item, tuple):
+                cue, weight = item
+            else:
+                cue, weight = item, 1
+            hits = _scope_cue_active(question, cue, neg_spans)
+            if not hits:
+                continue
+            sc += weight * hits
+            if weight >= 3:
+                spec += hits
+        if sc:
+            scores[slug] = sc
+            specific[slug] = spec
+    if not scores:
+        return "misc"
+    ranked = sorted(
+        scores.keys(),
+        key=lambda s: (scores[s], specific.get(s, 0)),
+        reverse=True,
+    )
+    top = ranked[0]
+    if len(ranked) >= 2:
+        second = ranked[1]
+        if scores[top] - scores[second] <= 1:
+            if specific.get(second, 0) > specific.get(top, 0):
+                return second
+    return top
+
+def _window_path(window):
+    """校验窗口列格式并返回工作区相对路径."""
+    if "\\" in window or ".." in window:
+        raise ValueError(_WINDOW_HELP)
+    rel, sep, lines = window.rpartition(":")
+    if (not sep or not rel or ":" in rel or os.path.isabs(rel)
+            or ntpath.isabs(rel) or ntpath.splitdrive(rel)[0]
+            or not re.fullmatch(r"行?[1-9]\d*(?:-行?[1-9]\d*)?", lines)):
+        raise ValueError(_WINDOW_HELP)
+    return rel
+
+def parse(ledger_path):
+    rows = []
+    if not os.path.exists(ledger_path):
+        return rows
+    for line in open(ledger_path, encoding="utf-8", errors="ignore"):
+        line = line.strip()
+        if not line.startswith("|") or set(line) <= set("|- :—"):
+            continue
+        cells = [c.strip() for c in line.strip("|").split("|")]
+        if len(cells) < _COLS or cells[0] in ("锚点", ""):
+            continue
+        explicit = ""
+        if len(cells) >= 5 and cells[4] and cells[4] not in ("scope", "作用域", "—", "-"):
+            explicit = cells[4].strip()
+            if explicit not in SCOPE_SLUGS:
+                explicit = ""
+        blob = f"{cells[0]}\n{cells[1]}\n{cells[2]}"
+        scope = explicit or infer_scope(blob)
+        rows.append({"anchor": cells[0], "window": cells[1],
+                     "value": cells[2], "kind": cells[3],
+                     "scope": scope, "scope_explicit": bool(explicit)})
+    return rows
+
+def lint(ledger_path):
+    """返回坏行及原因，不改变账本解析行为."""
+    bad_rows = []
+    if not os.path.exists(ledger_path):
+        return bad_rows
+    with open(ledger_path, encoding="utf-8-sig", errors="ignore") as fh:
+        for line_no, line in enumerate(fh, 1):
+            line = line.strip()
+            if not line.startswith("|") or set(line) <= set("|- :—"):
+                continue
+            body = line[1:]
+            if body.endswith("|"):
+                body = body[:-1]
+            cells = [c.strip() for c in body.split("|")]
+            if cells[0] == "锚点":
+                continue
+            reasons = []
+            if len(cells) < _COLS:
+                reasons.append("列数不足 4 列")
+            if not cells[0]:
+                reasons.append("锚点为空")
+            if len(cells) >= 2:
+                try:
+                    _window_path(cells[1])
+                except ValueError as exc:
+                    reasons.append(str(exc))
+            if len(cells) >= 5 and cells[4] and cells[4] not in ("scope", "作用域", "—", "-"):
+                if cells[4] not in SCOPE_SLUGS:
+                    reasons.append(f"scope 非法: {cells[4]}")
+            if reasons:
+                bad_rows.append({"line_no": line_no, "reason": "；".join(reasons)})
+    return bad_rows
+
+def _junk_bigram(bg):
+    """泛用二字组不参与值侧回退, 防误命中.
+    情态/否定搭子(不能/不要…)也作停用: 避免「为什么…不能…」撞上防注入等无关行."""
+    return bg in (
+        "多少", "怎么", "什么", "为什", "是什", "几条", "哪些", "哪个",
+        "不能", "不要", "不会", "可以", "可能", "应该", "必须", "怎样",
+    ) or any(ch in "的了吗吧呢啊是有在和与及或" for ch in bg)
+
+def find(rows, anchor_kw, question_scope=None):
+    """v0.2 召回: 候选并集(ASCII词+CJK) × 全行打分排序(F1 修复: 首中贪婪→覆盖率排序).
+
+    打分: 候选子串完整命中(锚点核计分高于值) > 4-gram 覆盖数 > 2-gram 覆盖数;
+    同分保持行序(稳定)。旧版缺陷: 首个含 gram 的行即返回, 短候选(如 e2e/AMBER)
+    被不相干先行行抢答; 新版要求"覆盖最多问题信息"的行获胜。
+
+    scope: question_scope 与行 scope 均非 misc 且不一致 → 硬淘汰(不计分).
+    另: 锚点核整段出现在候选中 → 强加分(防「价格库」近邻到同 scope 其它行).
+    """
+    candidates = [anchor_kw] if isinstance(anchor_kw, str) else list(anchor_kw)
+    if not rows:
+        return None
+    qscope = question_scope or "misc"
+    texts = [(_normalize(r["anchor"]), _normalize(r["value"])) for r in rows]
+    cores = [_normalize(r["anchor"].split("@")[0]) for r in rows]
+    values = [v for _a, v in texts]
+    anchors = [a for a, _v in texts]
+    scopes = [r.get("scope") or "misc" for r in rows]
+    allowed = [True] * len(rows)
+    if qscope != "misc":
+        for i, sc in enumerate(scopes):
+            if sc != "misc" and sc != qscope:
+                allowed[i] = False
+    scores = [0] * len(rows)
+    best_i, best_score = None, 0
+    for candidate in candidates:
+        key = _normalize(candidate)
+        if len(key) < 2:
+            continue
+        for i in range(len(rows)):
+            if not allowed[i]:
+                continue
+            if key in anchors[i]:
+                scores[i] += (4 if len(key) > 4 else 3) + len(key)
+            elif key in values[i]:
+                scores[i] += 2 + min(len(key), 4)
+            elif len(key) == 4 and key in cores[i]:
+                # CJK 4-gram 子候选: 只在锚点核内计 topical 分, 防值侧噪声
+                scores[i] += 4
+            # 锚点核整段落在候选(题面)里 → 绝对身份信号, 高于零散 bigram
+            core = cores[i]
+            if len(core) >= 4 and core in key:
+                scores[i] += 8 + len(core)
+            elif len(core) >= 3:
+                # 核前缀/核内 ≥3 字连续块出现在候选
+                for n in (4, 3):
+                    if len(core) < n:
+                        continue
+                    hit_gram = False
+                    for j in range(len(core) - n + 1):
+                        if core[j:j + n] in key:
+                            scores[i] += (5 if n == 4 else 3)
+                            hit_gram = True
+                            break
+                    if hit_gram:
+                        break
+        if len(key) <= 4 or not re.search(r"[\u4e00-\u9fff]", key):
+            continue   # bigram 只对 CJK 长候选有意义; ASCII 词内部字符对(AM/MB…)是噪声信号
+        for j in range(len(key) - 1):
+            bg = key[j:j + 2]
+            if _junk_bigram(bg):
+                continue
+            for i, value in enumerate(values):
+                if not allowed[i]:
+                    continue
+                if bg in value:
+                    scores[i] += 1
+    # 题面 scope 已知时: 若同 scope 已有正分命中, 淘汰 misc/其它(硬过滤的补充——防 misc 单 token 抢答)
+    if qscope != "misc":
+        same_hit = any(
+            allowed[i] and scopes[i] == qscope and scores[i] > 0
+            for i in range(len(rows))
+        )
+        if same_hit:
+            for i in range(len(rows)):
+                if scopes[i] != qscope:
+                    scores[i] = 0
+    for i, sc in enumerate(scores):
+        if not allowed[i]:
+            continue
+        if sc > best_score:
+            best_i, best_score = i, sc
+    return rows[best_i] if best_i is not None and best_score > 0 else None
+
+def covers(rows, anchor_kw, question_scope=None):
+    return find(rows, anchor_kw, question_scope=question_scope) is not None
+
+def _read_lines(ledger_path):
+    if not os.path.exists(ledger_path):
+        return []
+    with open(ledger_path, encoding="utf-8-sig", errors="ignore") as fh:
+        return fh.read().splitlines()
+
+def _chain_of(lines):
+    """逐行滚动哈希(跳过脚注与空行): 任何静默改行都会断链."""
+    h = "0" * 16
+    for ln in lines:
+        s = ln.strip()
+        if not s or s.startswith(_FOOT_PREFIX):
+            continue
+        h = hashlib.sha256((h + "|" + s).encode("utf-8")).hexdigest()[:16]
+    return h
+
+def chain_status(ledger_path):
+    """账本完整性: ok / broken / nofooter(旧账本, 尚未启用链)."""
+    lines = _read_lines(ledger_path)
+    foot = next((ln for ln in lines if ln.strip().startswith(_FOOT_PREFIX)), None)
+    if foot is None:
+        return "nofooter"
+    want = foot.strip()[len(_FOOT_PREFIX):-3] if foot.strip().endswith("-->") else ""
+    return "ok" if want and want == _chain_of(lines) else "broken"
+
+def stamp_footer(ledger_path):
+    """重写完整性脚注(仅脚注一行, 行内容永不改写)."""
+    lines = [ln for ln in _read_lines(ledger_path)
+             if not ln.strip().startswith(_FOOT_PREFIX)]
+    while lines and not lines[-1].strip():
+        lines.pop()
+    with open(ledger_path, "w", encoding="utf-8", newline="\n") as fh:
+        fh.write("\n".join(lines + [f"{_FOOT_PREFIX}{_chain_of(lines)}-->"]) + "\n")
+
+def append(ledger_path, anchor, window, value, kind="state", workspace_root=None,
+           scope=None):
+    """append-only: 锚点已存在即拒绝改写；给定工作区时校验产物及锚点.
+    scope 可选; 不传则按行文推断后写入第5列(显式固化绝对身份)."""
+    if not getattr(constants, "ALLOW_APPEND", False):
+        raise PermissionError("ledger_append requires Pro tier (engine-enforced)")
+    if not constants.APPEND_ONLY_ENFORCE:
+        raise RuntimeError("append-
+[TRUNCATED]

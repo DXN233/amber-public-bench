@@ -1,0 +1,13 @@
+## 任务
+ANSI 前景色红色码被改坏了。请定位 AnsiFore.RED（或 Fore.RED 对应码）应恢复的正确整数值与文件路径。回答：符号名、正确值、文件。
+
+## 上下文（AMBER 窄窗账本）
+# AMBER LEDGER / RESIDENT（窄窗）
+| 锚点 | 路径 | 约定 | 状态 |
+|---|---|---|---|
+| AnsiFore.RED@colorama | colorama/ansi.py | RED = 31（标准 ANSI 前景红） | state |
+| AnsiFore.LIGHTRED_EX | colorama/ansi.py | LIGHTRED_EX = 91（扩展亮红，勿与 RED 混淆） | state |
+| init(wrap=True) | colorama/initialise.py | wrap 默认 True | state |
+
+## 开工摘录
+- Fore.RED 必须是 31，不要写成 91。

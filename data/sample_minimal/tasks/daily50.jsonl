@@ -1,0 +1,3 @@
+{"id": "D01", "track": "daily", "category": "fact", "prompt": "库存一共多少件？", "gold": {"must_any": ["12"], "abstain": false}, "rubric": "protocol_v2_fair", "retrieval_query": "库存一共多少件？"}
+{"id": "D02", "track": "daily", "category": "fact", "prompt": "办公城市在哪？", "gold": {"must_any": ["示例市"], "abstain": false}, "rubric": "protocol_v2_fair", "retrieval_query": "办公城市在哪？"}
+{"id": "D03", "track": "daily", "category": "abstain", "prompt": "欧洲仓库存是多少？", "gold": {"must_any": ["无法定位"], "abstain": true}, "rubric": "protocol_v2_fair", "retrieval_query": "欧洲仓库存是多少？"}

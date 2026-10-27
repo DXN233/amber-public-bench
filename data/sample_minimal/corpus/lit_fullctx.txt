@@ -1,0 +1,7 @@
+arXiv:0000.00001
+Title:Sample Paper Alpha
+Abstract:Alpha introduces a toy memory window for demo purposes only.
+
+arXiv:0000.00002
+Title:Sample Paper Beta
+Abstract:Beta studies retrieval over short ledgers in a minimal harness.

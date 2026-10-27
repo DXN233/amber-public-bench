@@ -1,0 +1,101 @@
+【任务书】
+Bug report in iniconfig INI parsing:
+Lines that start with a semicolon `;` are no longer treated as comments. `iscommentline('; hello')` returns False but should return True (same as `#`).
+Fix this in `src/iniconfig/_parse.py` (look at `COMMENTCHARS` / `iscommentline`). Hash `#` comments must keep working. Do not touch tests/.
+
+# MECHANICAL INDEX (auto; not a solution ledger)
+src/iniconfig/_parse.py:7  COMMENTCHARS = "#"  # BUG: missing semicolon
+src/iniconfig/_parse.py:18  def parse_ini_data(
+src/iniconfig/_parse.py:158  def iscommentline(line: str) -> bool:
+src/iniconfig/_parse.py:11  class ParsedLine(NamedTuple):
+src/iniconfig/_parse.py:68  def parse_lines(
+src/iniconfig/_parse.py:99  def _parseline(
+src/iniconfig/__init__.py:89  class IniConfig:
+src/iniconfig/__init__.py:28  def __init__(self, config: "IniConfig", name: str) -> None:
+src/iniconfig/__init__.py:94  def __init__(
+src/iniconfig/exceptions.py:9  def __init__(self, path: str, lineno: int, msg: str) -> None:
+src/iniconfig/__init__.py:24  class SectionWrapper:
+src/iniconfig/__init__.py:32  def lineof(self, name: str) -> int | None:
+src/iniconfig/__init__.py:36  def get(self, key: str) -> str | None: ...
+src/iniconfig/__init__.py:39  def get(
+src/iniconfig/__init__.py:46  def get(
+src/iniconfig/__init__.py:54  def get(self, key: str, default: _D, convert: None = None) -> str | _D: ...
+src/iniconfig/__init__.py:57  def get(
+src/iniconfig/__init__.py:65  def get(  # type: ignore [misc]
+# README head
+iniconfig: brain-dead simple parsing of ini files
+=======================================================
+
+iniconfig is a small and simple INI-file parser module
+having a unique set of features:
+
+* maintains order of sections and entries
+* supports multi-line values with or without line-continuations
+* supports "#" comments everywhere
+* raises errors with proper line-numbers
+* no bells and whistles like automatic substitutions
+* iniconfig raises an Error if two sections have the same name.
+
+If y
+
+# AUTO FILE WINDOW: src/iniconfig/_parse.py (slice)
+# slice around L7 (file has 5138 chars; truncated)
+from collections.abc import Mapping
+from typing import Final
+from typing import NamedTuple
+
+from .exceptions import ParseError
+
+COMMENTCHARS = "#"  # BUG: missing semicolon
+UTF8_BOM: Final = "\N{BYTE ORDER MARK}"
+
+class ParsedLine(NamedTuple):
+    lineno: int
+    section: str | None
+    name: str | None
+    value: list[str] | None
+
+def parse_ini_data(
+    path: str,
+    data: str,
+    *,
+    strip_inline_comments: bool,
+    strip_section_whitespace: bool = False,
+) -> tuple[Mapping[str, Mapping[str, str]], Mapping[tuple[str, str | None], int]]:
+    """Parse INI data and return sections and sources mappings.
+
+    Args:
+        path: Path for error messages
+        data: INI content as string
+        strip_inline_comments: Whether to strip inline comments from values
+        strip_section_whitespace: Whether to strip whitespace from section and key names
+            (default: False). When True, addresses issue #4 by stripping Unicode whitespace.
+
+    Returns:
+        Tuple of (sections_data, sources) where:
+        - sections_data: mapping of section -> {name -> value}
+        - sources: mapping of (section, name) -> line number
+    """
+    data = data.removeprefix(UTF8_BOM)
+
+    tokens = parse_lines(
+        path,
+        data.splitlines(True),
+        strip_inline_comments=strip_inline_comments,
+        strip_section_whitespace=strip_section_whitespace,
+    )
+
+    sources: dict[tuple[str, str | None], int] = {}
+    sections_data: dict[str, dict[str, str]] = {}
+
+    for lineno, section, name, value in tokens:
+        if section is None:
+            raise ParseError(path, lineno, "no section header defined")
+        sources[section, name] = lineno
+        if name is None:
+            if section in sections_data:
+                raise ParseError(path, lineno, f"duplicate section {section!r}")
+            sections_data[section] = {}
+        else:
+            if name in sections_data[section]:
+                raise ParseError(path, lineno, f"duplicate name {name!r}")

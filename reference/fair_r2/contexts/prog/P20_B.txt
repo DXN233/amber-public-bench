@@ -1,0 +1,1139 @@
+【任务书】
+Bug report in zipp `_functools.none_as`:
+`none_as(None, 'foo')` is returning the wrong value — it seems inverted (None is kept / non-None is replaced). Correct behavior: `none_as(None, replacement) -> replacement`, and `none_as(value, replacement) -> value` when value is not None.
+Fix `none_as` in `zipp/_functools.py`. Do not touch tests/.
+
+# ===== FILE: (meta)/agents/skeleton.md =====
+Fetch and read the [skeleton](https://blog.jaraco.com/skeleton/) document in its entirety. It is the authoritative source of truth for this project's structure, conventions, testing, and release process, and is not duplicated here.
+
+# ===== FILE: (meta)/agents/stdlib.md =====
+This project shares its codebase with the CPython standard library, where it appears as `zipfile.Path`. The two trees are kept byte-identical: changes made here are synced downstream into CPython, and changes made in CPython are ported back here.
+
+Before changing anything under `zipp/` or `tests/`, read the [development methodology](https://github.com/python/importlib_metadata/wiki/Development-Methodology) in its entirety. It governs how the two codebases are kept in sync, which files are excluded from the stdlib, and how to verify the trees agree.
+
+# ===== FILE: .pytest_cache/README.md =====
+# pytest cache directory #
+
+This directory contains data from the pytest's cache plugin,
+which provides the `--lf` and `--ff` options, as well as the `cache` fixture.
+
+**Do not** commit this to version control.
+
+See [the docs](https://docs.pytest.org/en/stable/how-to/cache.html) for more information.
+
+# ===== FILE: AGENTS.md =====
+**Required first step:** Before reading further or making any changes, read every file in `(meta)/agents/` in its entirety. Those files are the authoritative source of truth for this project's conventions and are not duplicated here. Do not act until you have ingested them.
+
+# ===== FILE: SECURITY.md =====
+# Security Contact
+
+To report a security vulnerability, please use the [Tidelift security contact](https://tidelift.com/security). Tidelift will coordinate the fix and disclosure.
+
+# ===== FILE: docs/conf.py =====
+from __future__ import annotations
+
+extensions = [
+    'sphinx.ext.autodoc',
+    'jaraco.packaging.sphinx',
+]
+
+master_doc = "index"
+html_theme = "furo"
+
+# Link dates and other references in the changelog
+extensions += ['rst.linker']
+link_files = {
+    '../NEWS.rst': dict(
+        using=dict(GH='https://github.com'),
+        replace=[
+            dict(
+                pattern=r'(Issue #|\B#)(?P<issue>\d+)',
+                url='{package_url}/issues/{issue}',
+            ),
+            dict(
+                pattern=r'(?m:^((?P<scm_version>v?\d+(\.\d+){1,2}))\n[-=]+\n)',
+                with_scm='{text}\n{rev[timestamp]:%d %b %Y}\n',
+            ),
+            dict(
+                pattern=r'PEP[- ](?P<pep_number>\d+)',
+                url='https://peps.python.org/pep-{pep_number:0>4}/',
+            ),
+            dict(
+                pattern=r'(bpo-)(?P<bpo>\d+)',
+                url='http://bugs.python.org/issue{bpo}',
+            ),
+            dict(
+                pattern=r'(gh-)(?P<python_gh>\d+)',
+                url='http://bugs.python.org/issue{python_gh}',
+            ),
+        ],
+    )
+}
+
+# Be strict about any broken references
+nitpicky = True
+nitpick_ignore: list[tuple[str, str]] = []
+
+# Include Python intersphinx mapping to prevent failures
+# jaraco/skeleton#51
+extensions += ['sphinx.ext.intersphinx']
+intersphinx_mapping = {
+    'python': ('https://docs.python.org/3', None),
+}
+
+# Preserve authored syntax for defaults
+autodoc_preserve_defaults = True
+
+# Add support for linking usernames, PyPI projects, Wikipedia pages
+github_url = 'https://github.com/'
+extlinks = {
+    'user': (f'{github_url}%s', '@%s'),
+    'pypi': ('https://pypi.org/project/%s', '%s'),
+    'wiki': ('https://wikipedia.org/wiki/%s', '%s'),
+}
+extensions += ['sphinx.ext.extlinks']
+
+# local
+
+extensions += ['jaraco.tidelift']
+
+# ===== FILE: mypy.ini =====
+[mypy]
+# Is the project well-typed?
+strict = False
+
+# Early opt-in even when strict = False
+warn_unused_ignores = True
+warn_redundant_casts = True
+enable_error_code = ignore-without-code
+
+# Support namespace packages per https://github.com/python/mypy/issues/14057
+explicit_package_bases = True
+
+disable_error_code =
+	# Disable due to many false positives
+	overload-overlap,
+
+# CPython's test package ships no py.typed marker
+[mypy-test.*]
+ignore_missing_imports = True
+
+# jaraco/jaraco.itertools#20
+[mypy-jaraco.itertools]
+ignore_missing_imports = True
+
+# ===== FILE: pyproject.toml =====
+[build-system]
+requires = [
+	"setuptools>=77",
+	"setuptools_scm[toml]>=3.4.1",
+	# jaraco/skeleton#174
+	"coherent.licensed",
+]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "zipp"
+authors = [
+	{ name = "Jason R. Coombs", email = "jaraco@jaraco.com" },
+]
+description = "Backport of pathlib-compatible object wrapper for zip files"
+readme = "README.rst"
+classifiers = [
+	"Development Status :: 5 - Production/Stable",
+	"Intended Audience :: Developers",
+	"Programming Language :: Python :: 3",
+	"Programming Language :: Python :: 3 :: Only",
+]
+requires-python = ">=3.11"
+license = "MIT"
+dependencies = [
+]
+dynamic = ["version"]
+
+[project.urls]
+Source = "https://github.com/jaraco/zipp"
+
+[project.optional-dependencies]
+test = [
+	# upstream
+	"pytest >= 6, != 8.1.*",
+
+	# local
+	"jaraco.itertools",
+	"jaraco.functools",
+	"more_itertools",
+	"big-O",
+	"pytest-ignore-flaky",
+]
+
+doc = [
+	# upstream
+	"sphinx >= 3.5",
+	"jaraco.packaging >= 9.3",
+	"rst.linker >= 1.9",
+	"furo",
+	"sphinx-lint",
+
+	# tidelift
+	"jaraco.tidelift >= 1.4",
+
+	# local
+]
+
+check = [
+	"pytest-checkdocs >= 2.14",
+	"pytest-ruff >= 0.2.1; sys_platform != 'cygwin'",
+]
+
+cover = [
+	"pytest-cov",
+]
+
+enabler = [
+	"pytest-enabler >= 3.4",
+]
+
+type = [
+	# upstream
+	
+	# Exclude PyPy from type checks (python/mypy#20454 jaraco/skeleton#187)
+	"pytest-mypy >= 1.0.1; platform_python_implementation != 'PyPy'",
+
+	# local
+]
+
+[tool.setuptools_scm]
+
+# ===== FILE: ruff.toml =====
+[lint]
+extend-select = [
+	# upstream
+
+	"C901", # complex-structure
+	"I", # isort
+	"PERF401", # manual-list-comprehension
+	"UP", # pyupgrade (Code modernization for strings, annotations, conditions, ...)
+
+	# Ensure modern type annotation syntax and best practices
+	# Not including those covered by type-checkers or exclusive to Python 3.11+
+	"FA", # flake8-future-annotations
+	"F404", # late-future-import
+	"PYI", # flake8-pyi
+
+	# local
+]
+ignore = [
+	# upstream
+	"UP015", # redundant-open-modes, explicit is preferred
+
+	# Typeshed rejects complex or non-literal defaults for maintenance and testing reasons,
+	# irrelevant to this project.
+	"PYI011", # typed-argument-default-in-stub
+	# https://docs.astral.sh/ruff/formatter/#conflicting-lint-rules
+	"W191",
+	"D206",
+	"D300",
+	"COM812",
+	"COM819",
+
+	# N999 (invalid-module-name) yields false positives when a project's
+	# source directory is the distribution name and is redirected to a
+	# different import package (e.g. namespace layouts); the dotted directory
+	# name is itself a valid module. See
+	# https://github.com/astral-sh/ruff/issues/27801.
+	"N999",
+
+	# B008 is over-reaching; see jaraco/skeleton#214
+	"B008", # function-call-in-default-argument
+
+	# PLC0414 flags `import X as X`, the idiom type checkers recognize as an
+	# explicit re-export, and its fix (with F401) silently drops public names.
+	# See jaraco/skeleton#210.
+	"PLC0414", # useless-import-alias
+
+	# B018 flags bare attribute access, which is useful for its side effect
+	# (forcing a lazy import, probing a property) and more elegant in tests
+	# than assigning to an ignored name. See jaraco/skeleton#112.
+	"B018", # useless-expression
+
+	# local
+]
+
+[lint.flake8-comprehensions]
+# Retain the elegant dict(a=1) keyword-call style; C408 still flags dict()
+# and dict([...]). See jaraco/skeleton#210.
+allow-dict-calls-with-keyword-arguments = true
+
+[format]
+# Enable preview to get hugged parenthesis unwrapping and other nice surprises
+# See https://github.com/jaraco/skeleton/pull/133#issuecomment-2239538373
+preview = true
+# https://docs.astral.sh/ruff/settings/#format_quote-style
+quote-style = "preserve"
+
+# ===== FILE: tests/__init__.py =====
+
+# ===== FILE: tests/_support.py =====
+import importlib
+import unittest
+
+def import_or_skip(name):
+    try:
+        return importlib.import_module(name)
+    except ImportError:  # pragma: no cover
+        raise unittest.SkipTest(f'Unable to import {name}')
+
+# ===== FILE: tests/_test_params.py =====
+import functools
+import types
+from contextlib import AbstractContextManager
+
+from more_itertools import always_iterable
+
+def parameterize(names, value_groups):
+    """
+    Decorate a test method to run it as a set of subtests.
+
+    Modeled after pytest.parametrize.
+
+    Context Manager types are entered and exited.
+    """
+
+    def decorator(func):
+        @functools.wraps(func)
+        def wrapped(self):
+            for values in value_groups:
+                resolved = map(Invoked.eval, always_iterable(values))
+                params = dict(zip(always_iterable(names), resolved))
+                for value in params.values():
+                    if isinstance(value, AbstractContextManager):
+                        self.enterContext(value)
+                with self.subTest(**params):
+                    func(self, **params)
+
+        return wrapped
+
+    return decorator
+
+class Invoked(types.SimpleNamespace):
+    """
+    Wrap a function to be invoked for each usage.
+    """
+
+    @classmethod
+    def wrap(cls, func):
+        return cls(func=func)
+
+    @classmethod
+    def eval(cls, cand):
+        return cand.func() if isinstance(cand, cls) else cand
+
+# ===== FILE: tests/compat/__init__.py =====
+
+# ===== FILE: tests/compat/py313.py =====
+import os
+import sys
+import time
+
+def _for_archive(self, archive):
+    """Resolve suitable defaults from the archive.
+
+    Resolve the date_time, compression attributes, and external attributes
+    to suitable defaults as used by :method:`ZipFile.writestr`.
+
+    Return self.
+    """
+    # gh-91279: Set the SOURCE_DATE_EPOCH to a specific timestamp
+    epoch = os.environ.get('SOURCE_DATE_EPOCH')
+    get_time = int(epoch) if epoch else time.time()
+    self.date_time = time.localtime(get_time)[:6]
+
+    self.compress_type = archive.compression
+    self.compress_level = archive.compresslevel
+    if self.filename.endswith('/'):  # pragma: no cover
+        self.external_attr = 0o40775 << 16  # drwxrwxr-x
+        self.external_attr |= 0x10  # MS-DOS directory flag
+    else:
+        self.external_attr = 0o600 << 16  # ?rw-------
+    return self
+
+ForArchive = type(
+    'ForArchive',
+    (),
+    dict(_for_archive=_for_archive) if sys.version_info < (3, 14) else {},
+)
+
+# ===== FILE: tests/test_complexity.py =====
+import io
+import itertools
+import math
+import re
+import string
+import unittest
+
+from jaraco.functools import compose
+from more_itertools import consume
+
+from zipp.compat.overlay import zipfile
+
+from ._support import import_or_skip
+
+big_o = import_or_skip('big_o')
+pytest = import_or_skip('pytest')
+
+class TestComplexity(unittest.TestCase):
+    @pytest.mark.flaky
+    def test_implied_dirs_performance(self):
+        best, _others = big_o.big_o(
+            compose(consume, zipfile._path.CompleteDirs._implied_dirs),
+            lambda size: [
+                '/'.join(string.ascii_lowercase + str(n)) for n in range(size)
+            ],
+            max_n=1000,
+            min_n=1,
+        )
+        assert best <= big_o.complexities.Linear
+
+    def make_zip_path(self, depth=1, width=1):
+        """
+        Construct a Path with width files at every level of depth.
+        """
+        zf = zipfile.ZipFile(io.BytesIO(), mode='w')
+        pairs = itertools.product(self.make_deep_paths(depth), self.make_names(width))
+        for path, name in pairs:
+            zf.writestr(f"{path}{name}.txt", b'')
+        zf.filename = "big un.zip"
+        return zipfile.Path(zf)
+
+    @classmethod
+    def make_names(cls, width, letters=string.ascii_lowercase):
+        """
+        >>> list(TestComplexity.make_names(1))
+        ['a']
+        >>> list(TestComplexity.make_names(2))
+        ['a', 'b']
+        >>> list(TestComplexity.make_names(30))
+        ['aa', 'ab', ..., 'bd']
+        >>> list(TestComplexity.make_names(17124))
+        ['aaa', 'aab', ..., 'zip']
+        """
+        # determine how many products are needed to produce width
+        n_products = max(1, math.ceil(math.log(width, len(letters))))
+        inputs = (letters,) * n_products
+        combinations = itertools.product(*inputs)
+        names = map(''.join, combinations)
+        return itertools.islice(names, width)
+
+    @classmethod
+    def make_deep_paths(cls, depth):
+        return map(cls.make_deep_path, range(depth))
+
+    @classmethod
+    def make_deep_path(cls, depth):
+        return ''.join(('d/',) * depth)
+
+    def test_baseline_regex_complexity(self):
+        best, _others = big_o.big_o(
+            lambda path: re.fullmatch(r'[^/]*\\.txt', path),
+            self.make_deep_path,
+            max_n=100,
+            min_n=1,
+        )
+        assert best <= big_o.complexities.Constant
+
+    @pytest.mark.flaky
+    def test_glob_depth(self):
+        best, _others = big_o.big_o(
+            lambda path: consume(path.glob('*.txt')),
+            self.make_zip_path,
+            max_n=100,
+            min_n=1,
+        )
+        assert best <= big_o.complexities.Linear
+
+    @pytest.mark.flaky
+    def test_glob_width(self):
+        best, _others = big_o.big_o(
+            lambda path: consume(path.glob('*.txt')),
+            lambda size: self.make_zip_path(width=size),
+            max_n=100,
+            min_n=1,
+        )
+        assert best <= big_o.complexities.Linear
+
+    @pytest.mark.flaky
+    def test_glob_width_and_depth(self):
+        best, _others = big_o.big_o(
+            lambda path: consume(path.glob('*.txt')),
+            lambda size: self.make_zip_path(depth=size, width=size),
+            max_n=10,
+            min_n=1,
+        )
+        assert best <= big_o.complexities.Linear
+
+# ===== FILE: tests/test_path.py =====
+import io
+import itertools
+import pathlib
+import pickle
+import stat
+import sys
+import unittest
+
+import jaraco.itertools
+from jaraco.functools import compose
+from test.support.os_helper import FakePath, temp_dir
+
+from zipp.compat.overlay import zipfile
+
+from ._test_params import Invoked, parameterize
+from .compat.py313 import ForArchive
+
+def _make_link(info: zipfile.ZipInfo):  # type: ignore[name-defined]
+    info.external_attr |= stat.S_IFLNK << 16
+
+def build_alpharep_fixture():
+    """
+    Create a zip file with this structure:
+
+    .
+    ├── a.txt
+    ├── n.txt (-> a.txt)
+    ├── b
+    │   ├── c.txt
+    │   ├── d
+    │   │   └── e.txt
+    │   └── f.txt
+    ├── g
+    │   └── h
+    │       └── i.txt
+    └── j
+        ├── k.bin
+        ├── l.baz
+        └── m.bar
+
+    This fixture has the following key characteristics:
+
+    - a file at the root (a)
+    - a file two levels deep (b/d/e)
+    - multiple files in a directory (b/c, b/f)
+    - a directory containing only a directory (g/h)
+    - a directory with files of different extensions (j/klm)
+    - a symlink (n) pointing to (a)
+
+    "alpha" because it uses alphabet
+    "rep" because it's a representative example
+    """
+    data = io.BytesIO()
+    zf = zipfile.ZipFile(data, "w")
+    zf.writestr("a.txt", b"content of a")
+    zf.writestr("b/c.txt", b"content of c")
+    zf.writestr("b/d/e.txt", b"content of e")
+    zf.writestr("b/f.txt", b"content of f")
+    zf.writestr("g/h/i.txt", b"content of i")
+    zf.writestr("j/k.bin", b"content of k")
+    zf.writestr("j/l.baz", b"content of l")
+    zf.writestr("j/m.bar", b"content of m")
+    zf.writestr("n.txt", b"a.txt")
+    _make_link(zf.infolist()[-1])
+
+    zf.filename = "alpharep.zip"
+    return zf
+
+alpharep_generators = [
+    Invoked.wrap(build_alpharep_fixture),
+    Invoked.wrap(compose(zipfile._path.CompleteDirs.inject, build_alpharep_fixture)),
+]
+
+pass_alpharep = parameterize(['alpharep'], alpharep_generators)
+
+class TestPath(unittest.TestCase):
+    def zipfile_ondisk(self, alpharep):
+        tmpdir = pathlib.Path(self.enterContext(temp_dir()))
+        buffer = alpharep.fp
+        alpharep.close()
+        path = tmpdir / alpharep.filename
+        with path.open("wb") as strm:
+            strm.write(buffer.getvalue())
+        return path
+
+    @pass_alpharep
+    def test_iterdir_and_types(self, alpharep):
+        root = zipfile.Path(alpharep)
+        assert root.is_dir()
+        a, n, b, g, j = root.iterdir()  # noqa: RUF059
+        assert a.is_file()
+        assert b.is_dir()
+        assert g.is_dir()
+        c, f, d = b.iterdir()
+        assert c.is_file() and f.is_file()
+        (e,) = d.iterdir()
+        assert e.is_file()
+        (h,) = g.iterdir()
+        (i,) = h.iterdir()
+        assert i.is_file()
+
+    @pass_alpharep
+    def test_is_file_missing(self, alpharep):
+        root = zipfile.Path(alpharep)
+        assert not root.joinpath('missing.txt').is_file()
+
+    @pass_alpharep
+    def test_iterdir_on_file(self, alpharep):
+        root = zipfile.Path(alpharep)
+        a, n, b, g, j = root.iterdir()  # noqa: RUF059
+        with self.assertRaises(NotADirectoryError):
+            a.iterdir()
+
+    @pass_alpharep
+    def test_subdir_is_dir(self, alpharep):
+        root = zipfile.Path(alpharep)
+        assert (root / 'b').is_dir()
+        assert (root / 'b/').is_dir()
+        assert (root / 'g').is_dir()
+        assert (root / 'g/').is_dir()
+
+    @pass_alpharep
+    def test_open(self, alpharep):
+        root = zipfile.Path(alpharep)
+        a, n, b, g, j = root.iterdir()  # noqa: RUF059
+        with a.open(encoding="utf-8") as strm:
+            data = strm.read()
+        self.assertEqual(data, "content of a")
+        with a.open('r', "utf-8") as strm:  # not a kw, no gh-101144 TypeError
+            data = strm.read()
+        self.assertEqual(data, "content of a")
+
+    def test_open_encoding_utf16(self):
+        in_memory_file = io.BytesIO()
+        zf = self.enterContext(zipfile.ZipFile(in_memory_file, "w"))
+        zf.writestr("path/16.txt", "This was utf-16".encode("utf-16"))
+        zf.filename = "test_open_utf16.zip"
+        root = zipfile.Path(zf)
+        (path,) = root.iterdir()
+        u16 = path.joinpath("16.txt")
+        with u16.open('r', "utf-16") as strm:
+            data = strm.read()
+        assert data == "This was utf-16"
+        with u16.open(encoding="utf-16") as strm:
+            data = strm.read()
+        assert data == "This was utf-16"
+
+    def test_open_encoding_errors(self):
+        in_memory_file = io.BytesIO()
+        zf = self.enterContext(zipfile.ZipFile(in_memory_file, "w"))
+        zf.writestr("path/bad-utf8.bin", b"invalid utf-8: \xff\xff.")
+        zf.filename = "test_read_text_encoding_errors.zip"
+        root = zipfile.Path(zf)
+        (path,) = root.iterdir()
+        u16 = path.joinpath("bad-utf8.bin")
+
+        # encoding= as a positional argument for gh-101144.
+        data = u16.read_text("utf-8", errors="ignore")
+        assert data == "invalid utf-8: ."
+        with u16.open("r", "utf-8", errors="surrogateescape") as f:
+            assert f.read() == "invalid utf-8: \udcff\udcff."
+
+        # encoding= both positional and keyword is an error; gh-101144.
+        with self.assertRaisesRegex(TypeError, "encoding"):
+            data = u16.read_text("utf-8", encoding="utf-8")
+
+        # both keyword arguments work.
+        # error during decoding with wrong codec.
+        with (
+            u16.open("r", encoding="utf-8", errors="strict") as f,
+            self.assertRaises(UnicodeDecodeError),
+        ):
+            f.read()
+
+    @unittest.skipIf(
+        not getattr(sys.flags, 'warn_default_encoding', 0),
+        "Requires warn_default_encoding",
+    )
+    @pass_alpharep
+    def test_encoding_warnings(self, alpharep):
+        """EncodingWarning must blame the read_text and open calls."""
+        assert sys.flags.warn_default_encoding
+        root = zipfile.Path(alpharep)
+        with self.assertWarns(EncodingWarning) as wc:
+            root.joinpath("a.txt").read_text()
+        assert __file__ == wc.filename
+        with self.assertWarns(EncodingWarning) as wc:
+            root.joinpath("a.txt").open("r").close()
+        assert __file__ == wc.filename
+
+    def test_open_write(self):
+        """
+        If the zipfile is open for write, it should be possible to
+        write bytes or text to it.
+        """
+        zip_file = self.enterContext(zipfile.ZipFile(io.BytesIO(), mode='w'))
+        zf = zipfile.Path(zip_file)
+        with zf.joinpath('file.bin').open('wb') as strm:
+            strm.write(b'binary contents')
+        with zf.joinpath('file.txt').open('w', encoding="utf-8") as strm:
+            strm.write('text file')
+
+    @pass_alpharep
+    def test_open_extant_directory(self, alpharep):
+        """
+        Attempting to open a directory raises IsADirectoryError.
+        """
+        zf = zipfile.Path(alpharep)
+        with self.assertRaises(IsADirectoryError):
+            zf.joinpath('b').open()
+
+    @pass_alpharep
+    def test_open_binary_invalid_args(self, alpharep):
+        root = zipfile.Path(alpharep)
+        with self.assertRaises(ValueError):
+            root.joinpath('a.txt').open('rb', encoding='utf-8')
+        with self.assertRaises(ValueError):
+            root.joinpath('a.txt').open('rb', 'utf-8')
+
+    @pass_alpharep
+    def test_open_missing_directory(self, alpharep):
+        """
+        Attempting to open a missing directory raises FileNotFoundError.
+        """
+        zf = zipfile.Path(alpharep)
+        with self.assertRaises(FileNotFoundError):
+            zf.joinpath('z').open()
+
+    @pass_alpharep
+    def test_read(self, alpharep):
+        root = zipfile.Path(alpharep)
+        a, n, b, g, j = root.iterdir()  # noqa: RUF059
+        assert a.read_text(encoding="utf-8") == "content of a"
+        # Also check positional encoding arg (gh-101144).
+        assert a.read_text("utf-8") == "content of a"
+        assert a.read_bytes() == b"content of a"
+
+    @pass_alpharep
+    def test_joinpath(self, alpharep):
+        root = zipfile.Path(alpharep)
+        a = root.joinpath("a.txt")
+        assert a.is_file()
+        e = root.joinpath("b").joinpath("d").joinpath("e.txt")
+        assert e.read_text(encoding="utf-8") == "content of e"
+
+    @pass_alpharep
+    def test_joinpath_multiple(self, alpharep):
+        root = zipfile.Path(alpharep)
+        e = root.joinpath("b", "d", "e.txt")
+        assert e.read_text(encoding="utf-8") == "content of e"
+
+    @pass_alpharep
+    def test_traverse_truediv(self, alpharep):
+        root = zipfile.Path(alpharep)
+        a = root / "a.txt"
+        assert a.is_file()
+        e = root / "b" / "d" / "e.txt"
+        assert e.read_text(encoding="utf-8") == "content of e"
+
+    @pass_alpharep
+    def test_pathlike_construction(self, alpharep):
+        """
+        zipfile.Path should be constructable from a path-like object
+        """
+        zipfile_ondisk = self.zipfile_ondisk(alpharep)
+        pathlike = FakePath(str(zipfile_ondisk))
+        root = zipfile.Path(pathlike)
+        root.root.close()
+
+    @pass_alpharep
+    def test_traverse_pathlike(self, alpharep):
+        root = zipfile.Path(alpharep)
+        root / FakePath("a")
+
+    @pass_alpharep
+    def test_parent(self, alpharep):
+        root = zipfile.Path(alpharep)
+        assert (root / 'a').parent.at == ''
+        assert (root / 'a' / 'b').parent.at == 'a/'
+
+    @pass_alpharep
+    def test_dir_parent(self, alpharep):
+        root = zipfile.Path(alpharep)
+        assert (root / 'b').parent.at == ''
+        assert (root / 'b/').parent.at == ''
+
+    @pass_alpharep
+    def test_missing_dir_parent(self, alpharep):
+        root = zipfile.Path(alpharep)
+        assert (root / 'missing dir/').parent.at == ''
+
+    @pass_alpharep
+    def test_mutability(self, alpharep):
+        """
+        If the underlying zipfile is changed, the Path object should
+        reflect that change.
+        """
+        root = zipfile.Path(alpharep)
+        a, n, b, g, j = root.iterdir()  # noqa: RUF059
+        alpharep.writestr('foo.txt', 'foo')
+        alpharep.writestr('bar/baz.txt', 'baz')
+        assert any(child.name == 'foo.txt' for child in root.iterdir())
+        assert (root / 'foo.txt').read_text(encoding="utf-8") == 'foo'
+        (baz,) = (root / 'bar').iterdir()
+        assert baz.read_text(encoding="utf-8") == 'baz'
+
+    HUGE_ZIPFILE_NUM_ENTRIES = 2**13
+
+    def huge_zipfile(self):
+        """Create a read-only zipfile with a huge number of entries."""
+        strm = io.BytesIO()
+        zf = self.enterContext(zipfile.ZipFile(strm, "w"))
+        for entry in map(str, range(self.HUGE_ZIPFILE_NUM_ENTRIES)):
+            zf.writestr(entry, entry)
+        zf.mode = 'r'
+        return zf
+
+    def test_joinpath_constant_time(self):
+        """
+        Ensure joinpath on items in zipfile is linear time.
+        """
+        root = zipfile.Path(self.huge_zipfile())
+        entries = jaraco.itertools.Counter(root.iterdir())
+        for entry in entries:
+            entry.joinpath('suffix')
+        # Check the file iterated all items
+        assert entries.count == self.HUGE_ZIPFILE_NUM_ENTRIES
+
+    @pass_alpharep
+    def test_read_does_not_close(self, alpharep):
+        alpharep = self.zipfile_ondisk(alpharep)
+        with zipfile.ZipFile(alpharep) as file:
+            for rep in range(2):
+                zipfile.Path(file, 'a.txt').read_text(encoding="utf-8")
+
+    @pass_alpharep
+    def test_subclass(self, alpharep):
+        class Subclass(zipfile.Path):
+            pass
+
+        root = Subclass(alpharep)
+        assert isinstance(root / 'b', Subclass)
+
+    def test_at(self):
+        zip_file = self.enterContext(zipfile.ZipFile(io.BytesIO(), 'w'))
+        root = zipfile.Path(zip_file)
+        assert root.at == ''
+        assert (root / 'foo' / 'bar').at == 'foo/bar'
+
+    def test_str(self):
+        """
+        An unnamed zip file is indicated by ":zipfile:"
+        """
+        zip_file = self.enterContext(zipfile.ZipFile(io.BytesIO(), 'w'))
+        root = zipfile.Path(zip_file)
+        assert str(root) == ':zipfile:'
+        assert str(root / 'foo' / 'bar') == ':zipfile:/foo/bar'
+
+    @pass_alpharep
+    def test_filename(self, alpharep):
+        root = zipfile.Path(alpharep)
+        assert root.filename == pathlib.Path('alpharep.zip')
+
+    @pass_alpharep
+    def test_root_name(self, alpharep):
+        """
+        The name of the root should be the name of the zipfile
+        """
+        root = zipfile.Path(alpharep)
+        assert root.name == 'alpharep.zip' == root.filename.name
+
+    @pass_alpharep
+    def test_root_on_disk(self, alpharep):
+        """
+        The name/stem of the root should match the zipfile on disk.
+
+        This condition must hold across platforms.
+        """
+        root = zipfile.Path(self.zipfile_ondisk(alpharep))
+        assert root.name == 'alpharep.zip' == root.filename.name
+        assert root.stem == 'alpharep' == root.filename.stem
+        root.root.close()
+
+    @pass_alpharep
+    def test_suffix(self, alpharep):
+        """
+        The suffix of the root should be the suffix of the zipfile.
+        The suffix of each nested file is the final component's last suffix, if any.
+        Includes the leading period, just like pathlib.Path.
+        """
+        root = zipfile.Path(alpharep)
+        assert root.suffix == '.zip' == root.filename.suffix
+
+        b = root / "b.txt"
+        assert b.suffix == ".txt"
+
+        c = root / "c" / "filename.tar.gz"
+        assert c.suffix == ".gz"
+
+        d = root / "d"
+        assert d.suffix == ""
+
+    @pass_alpharep
+    def test_suffixes(self, alpharep):
+        """
+        The suffix of the root should be the suffix of the zipfile.
+        The suffix of each nested file is the final component's last suffix, if any.
+        Includes the leading period, just like pathlib.Path.
+        """
+        root = zipfile.Path(alpharep)
+        assert root.suffixes == ['.zip'] == root.filename.suffixes
+
+        b = root / 'b.txt'
+        assert b.suffixes == ['.txt']
+
+        c = root / 'c' / 'filename.tar.gz'
+        assert c.suffixes == ['.tar', '.gz']
+
+        d = root / 'd'
+        assert d.suffixes == []
+
+        e = root / '.hgrc'
+        assert e.suffixes == []
+
+    @pass_alpharep
+    def test_suffix_no_filename(self, alpharep):
+        alpharep.filename = None
+        root = zipfile.Path(alpharep)
+        assert root.joinpath('example').suffix == ""
+        assert root.joinpath('example').suffixes == []
+
+    @pass_alpharep
+    def test_stem(self, alpharep):
+        """
+        The final path component, without its suffix
+        """
+        root = zipfile.Path(alpharep)
+        assert root.stem == 'alpharep' == root.filename.stem
+
+        b = root / "b.txt"
+        assert b.stem == "b"
+
+        c = root / "c" / "filename.tar.gz"
+        assert c.stem == "filename.tar"
+
+        d = root / "d"
+        assert d.stem == "d"
+
+        assert (root / ".gitignore").stem == ".gitignore"
+
+    @pass_alpharep
+    def test_root_parent(self, alpharep):
+        root = zipfile.Path(alpharep)
+        assert root.parent == pathlib.Path('.')
+        root.root.filename = 'foo/bar.zip'
+        assert root.parent == pathlib.Path('foo')
+
+    @pass_alpharep
+    def test_root_unnamed(self, alpharep):
+        """
+        It is an error to attempt to get the name
+        or parent of an unnamed zipfile.
+        """
+        alpharep.filename = None
+        root = zipfile.Path(alpharep)
+        with self.assertRaises(TypeError):
+            root.name
+        with self.assertRaises(TypeError):
+            root.parent
+
+        # .name and .parent should still work on subs
+        sub = root / "b"
+        assert sub.name == "b"
+        assert sub.parent
+
+    @pass_alpharep
+    def test_match_and_glob(self, alpharep):
+        root = zipfile.Path(alpharep)
+        assert not root.match("*.txt")
+
+        assert list(root.glob("b/c.*")) == [zipfile.Path(alpharep, "b/c.txt")]
+        assert list(root.glob("b/*.txt")) == [
+            zipfile.Path(alpharep, "b/c.txt"),
+            zipfile.Path(alpharep, "b/f.txt"),
+        ]
+
+    @pass_alpharep
+    def test_glob_recursive(self, alpharep):
+        root = zipfile.Path(alpharep)
+        files = root.glob("**/*.txt")
+        assert all(each.match("*.txt") for each in files)
+
+        assert list(root.glob("**/*.txt")) == list(root.rglob("*.txt"))
+
+    @pass_alpharep
+    def test_glob_dirs(self, alpharep):
+        root = zipfile.Path(alpharep)
+        assert list(root.glob('b')) == [zipfile.Path(alpharep, "b/")]
+        assert list(root.glob('b*')) == [zipfile.Path(alpharep, "b/")]
+
+    @pass_alpharep
+    def test_glob_subdir(self, alpharep):
+        root = zipfile.Path(alpharep)
+        assert list(root.glob('g/h')) == [zipfile.Path(alpharep, "g/h/")]
+        assert list(root.glob('g*/h*')) == [zipfile.Path(alpharep, "g/h/")]
+
+    @pass_alpharep
+    def test_glob_subdirs(self, alpharep):
+        root = zipfile.Path(alpharep)
+
+        assert list(root.glob("*/i.txt")) == []
+        assert list(root.rglob("*/i.txt")) == [zipfile.Path(alpharep, "g/h/i.txt")]
+
+    @pass_alpharep
+    def test_glob_does_not_overmatch_dot(self, alpharep):
+        root = zipfile.Path(alpharep)
+
+        assert list(root.glob("*.xt")) == []
+
+    @pass_alpharep
+    def test_glob_single_char(self, alpharep):
+        root = zipfile.Path(alpharep)
+
+        assert list(root.glob("a?txt")) == [zipfile.Path(alpharep, "a.txt")]
+        assert list(root.glob("a[.]txt")) == [zipfile.Path(alpharep, "a.txt")]
+        assert list(root.glob("a[?]txt")) == []
+
+    @pass_alpharep
+    def test_glob_chars(self, alpharep):
+        root = zipfile.Path(alpharep)
+
+        assert list(root.glob("j/?.b[ai][nz]")) == [
+            zipfile.Path(alpharep, "j/k.bin"),
+            zipfile.Path(alpharep, "j/l.baz"),
+        ]
+
+    @parameterize(
+        ['alpharep', 'pattern', 'expected'],
+        [
+            (alpharep, pattern, expected)
+            for alpharep in alpharep_generators
+            for pattern, expected in [
+                ('[!a].txt', {'n.txt'}),
+                ('[!an].txt', set()),
+                ('[!b]', {'g/', 'j/'}),
+                ('j/[!k].b*', {'j/l.baz', 'j/m.bar'}),
+                ('j/[^k].b*', {'j/k.bin'}),
+                ('j/[!k-l].b*', {'j/m.bar'}),
+                ('j/[k-l].b*', {'j/k.bin', 'j/l.baz'}),
+                ('b[!x]c.txt', set()),
+            ]
+        ],
+    )
+    def test_glob_character_class_syntax(self, alpharep, pattern, expected):
+        root = zipfile.Path(alpharep)
+        assert {path.at for path in root.glob(pattern)} == expected
+
+    def test_glob_empty(self):
+        zip_file = self.enterContext(zipfile.ZipFile(io.BytesIO(), 'w'))
+        root = zipfile.Path(zip_file)
+        with self.assertRaises(ValueError):
+            root.glob('')
+
+    @pass_alpharep
+    def test_eq_hash(self, alpharep):
+        root = zipfile.Path(alpharep)
+        assert root == zipfile.Path(alpharep)
+
+        assert root != (root / "a.txt")
+        assert (root / "a.txt") == (root / "a.txt")
+
+        root = zipfile.Path(alpharep)
+        assert root in {root}
+
+    @pass_alpharep
+    def test_is_symlink(self, alpharep):
+        root = zipfile.Path(alpharep)
+        assert not root.joinpath('a.txt').is_symlink()
+        assert root.joinpath('n.txt').is_symlink()
+
+    @pass_alpharep
+    def test_relative_to(self, alpharep):
+        root = zipfile.Path(alpharep)
+        relative = root.joinpath("b", "c.txt").relative_to(root / "b")
+        assert str(relative) == "c.txt"
+
+        relative = root.joinpath("b", "d", "e.txt").relative_to(root / "b")
+        assert str(relative) == "d/e.txt"
+
+    @pass_alpharep
+    def test_inheritance(self, alpharep):
+        cls = type('PathChild', (zipfile.Path,), {})
+        file = cls(alpharep).joinpath('some dir').parent
+        assert isinstance(file, cls)
+
+    @parameterize(
+        ['alpharep', 'path_type', 'subpath'],
+        itertools.product(
+            alpharep_generators,
+            [str, FakePath],
+            ['', 'b/'],
+        ),
+    )
+    def test_pickle(self, alpharep, path_type, subpath):
+        zipfile_ondisk = path_type(str(self.zipfile_ondisk(alpharep)))
+        root = zipfile.Path(zipfile_ondisk, at=subpath)
+        saved_1 = pickle.dumps(root)
+        root.root.close()
+        restored_1 = pickle.loads(saved_1)
+        first, *_rest = restored_1.iterdir()
+        assert first.read_text(encoding='utf-8').startswith('content of ')
+        restored_1.root.close()
+
+    @pass_alpharep
+    def test_extract_orig_with_implied_dirs(self, alpharep):
+        """
+        A zip file wrapped in a Path should extract even with implied dirs.
+        """
+        source_path = self.zipfile_ondisk(alpharep)
+        zf = zipfile.ZipFile(source_path)
+        # wrap the zipfile for its side effect
+        zipfile.Path(zf)
+        zf.extractall(source_path.parent)
+        zf.close()
+
+    @pass_alpharep
+    def test_getinfo_missing(self, alpharep):
+        """
+        Validate behavior of getinfo on original zipfile after wrapping.
+        """
+        zipfile.Path(alpharep)
+        with self.assertRaises(KeyError):
+            alpharep.getinfo('does-not-exist')
+
+    def test_malformed_paths(self):
+        """
+        Path should handle malformed paths gracefully.
+
+        Paths with leading slashes are not visible.
+
+        Paths with dots are treated like regular files.
+        """
+        data = io.BytesIO()
+        zf = self.enterContext(zipfile.ZipFile(data, "w"))
+        zf.writestr("/one-slash.txt", b"content")
+        zf.writestr("//two-slash.txt", b"content")
+        zf.writestr("../parent.txt", b"content")
+        zf.filename = ''
+        root = zipfile.Path(zf)
+        assert list(map(str, root.iterdir())) == ['../']
+        assert root.joinpath('..').joinpath('parent.txt').read_bytes() == b'content'
+
+    def test_unsupported_names(self):
+        """
+        Path segments with special characters are readable.
+
+        On some platforms or file systems, characters like
+        ``:`` and ``?`` are not allowed, but they are valid
+        in the zip file.
+        """
+        data = io.BytesIO()
+        zf = self.enterContext(zipfile.ZipFile(data, "w"))
+        zf.writestr("path?", b"content")
+        zf.writestr("V: NM
