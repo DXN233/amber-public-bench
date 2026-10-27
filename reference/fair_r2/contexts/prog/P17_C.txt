@@ -1,0 +1,79 @@
+【任务书】
+Follow-up feature (builds on Contains ALL-values fix):
+Add a helper `none_missing(container, *values)` in `dirty_equals/_utils.py` that returns True iff every value in `values` is present in `container` (using `in`), else False.
+Place it near `get_dict_arg` / `plain_repr`. Do not break existing utils. Do not touch tests/.
+
+# MECHANICAL INDEX (auto; not a solution ledger)
+dirty_equals/_utils.py:18  def plain_repr(v: str) -> PlainRepr:
+dirty_equals/_utils.py:26  def get_dict_arg(
+dirty_equals/_utils.py:6  class PlainRepr:
+dirty_equals/_utils.py:11  def __init__(self, v: str):
+dirty_equals/_utils.py:14  def __repr__(self) -> str:
+dirty_equals/_boolean.py:38  def __init__(self, *, allow_strings: bool = False):
+dirty_equals/_inspection.py:68  def __init__(self, expected_name: Union[IsStr, str], *, allow_instances: bool = True):
+dirty_equals/_other.py:133  def __init__(self, func: Callable[[Any], bool]):
+dirty_equals/_sequence.py:63  class Contains(DirtyEquals[Container[Any]]):
+dirty_equals/_base.py:21  class DirtyEqualsMeta(ABCMeta):
+dirty_equals/_base.py:22  def __eq__(self, other: Any) -> bool:
+dirty_equals/_base.py:38  def __or__(self, other: Any) -> 'DirtyOr':  # type: ignore[override]
+dirty_equals/_base.py:41  def __and__(self, other: Any) -> 'DirtyAnd':
+dirty_equals/_base.py:44  def __invert__(self) -> 'DirtyNot':
+dirty_equals/_base.py:47  def __hash__(self) -> int:
+dirty_equals/_base.py:50  def __repr__(self) -> str:
+dirty_equals/_base.py:57  class DirtyEquals(Generic[T], metaclass=DirtyEqualsMeta):
+dirty_equals/_base.py:64  def __init__(self, *repr_args: Any, **repr_kwargs: Any):
+# README head
+<p align="center">
+  <a href="https://dirty-equals.helpmanual.io">
+    <img src="https://dirty-equals.helpmanual.io/latest/img/logo-text.svg" alt="dirty-equals">
+  </a>
+</p>
+<p align="center">
+  <em>Doing dirty (but extremely useful) things with equals.</em>
+</p>
+<p align="center">
+  <a href="https://github.com/samuelcolvin/dirty-equals/actions/workflows/ci.yml?query=event%3Apush+branch%3Amain+workflow%3ACI"><img src="https://github.com/samuelcolvin/dirty-equals/actions/workflows/ci.yml/badge.sv
+
+# AUTO FILE WINDOW: dirty_equals/_utils.py (full_small)
+__all__ = 'plain_repr', 'PlainRepr', 'Omit', 'get_dict_arg'
+
+from typing import Any
+
+class PlainRepr:
+    """
+    Hack to allow repr of string without quotes.
+    """
+
+    def __init__(self, v: str):
+        self.v = v
+
+    def __repr__(self) -> str:
+        return self.v
+
+def plain_repr(v: str) -> PlainRepr:
+    return PlainRepr(v)
+
+# used to omit arguments from repr
+Omit = object()
+
+def get_dict_arg(
+    name: str, expected_args: tuple[dict[Any, Any], ...], expected_kwargs: dict[str, Any]
+) -> dict[Any, Any]:
+    """
+    Used to enforce init logic similar to `dict(...)`.
+    """
+    if expected_kwargs:
+        value = expected_kwargs
+        if expected_args:
+            raise TypeError(f'{name} requires either a single argument or kwargs, not both')
+    elif not expected_args:
+        value = {}
+    elif len(expected_args) == 1:
+        value = expected_args[0]
+
+        if not isinstance(value, dict):
+            raise TypeError(f'expected_values must be a dict, got {type(value)}')
+    else:
+        raise TypeError(f'{name} expected at most 1 argument, got {len(expected_args)}')
+
+    return value

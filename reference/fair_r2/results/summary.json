@@ -1,0 +1,458 @@
+{
+  "method_id": "amber-public-bench-20261027-r2-fair",
+  "data_dir": "reference/fair_r2",
+  "harness_note": "This repo is a public comparison harness, not the AMBER memory product source.",
+  "tracks": {
+    "daily": {
+      "track": "daily",
+      "n_rows": 450,
+      "n_ok_rows": 450,
+      "n_err_rows": 0,
+      "arms": {
+        "C_amber": {
+          "runs": [
+            {
+              "run_i": 1,
+              "n": 50,
+              "prompt_tokens_sum": 7824,
+              "completion_tokens_sum": 307,
+              "total_tokens_sum": 8131,
+              "completion_rate": 0.98,
+              "protocol_score_mean": 1.96
+            },
+            {
+              "run_i": 2,
+              "n": 50,
+              "prompt_tokens_sum": 7824,
+              "completion_tokens_sum": 300,
+              "total_tokens_sum": 8124,
+              "completion_rate": 0.98,
+              "protocol_score_mean": 1.96
+            },
+            {
+              "run_i": 3,
+              "n": 50,
+              "prompt_tokens_sum": 7824,
+              "completion_tokens_sum": 307,
+              "total_tokens_sum": 8131,
+              "completion_rate": 0.98,
+              "protocol_score_mean": 1.96
+            }
+          ],
+          "prompt_tokens_sum_mean": 7824,
+          "prompt_tokens_sum_std": 0.0,
+          "completion_tokens_sum_mean": 304.6666666666667,
+          "completion_tokens_sum_std": 3.2998316455372216,
+          "total_tokens_sum_mean": 8128.666666666667,
+          "total_tokens_sum_std": 3.2998316455372216,
+          "completion_rate_mean": 0.98,
+          "completion_rate_std": 0.0,
+          "protocol_score_mean": 1.96,
+          "protocol_score_std": 0.0,
+          "n_tasks_per_run": 50
+        },
+        "B_fullctx": {
+          "runs": [
+            {
+              "run_i": 1,
+              "n": 50,
+              "prompt_tokens_sum": 73036,
+              "completion_tokens_sum": 357,
+              "total_tokens_sum": 73393,
+              "completion_rate": 0.98,
+              "protocol_score_mean": 1.96
+            },
+            {
+              "run_i": 2,
+              "n": 50,
+              "prompt_tokens_sum": 73036,
+              "completion_tokens_sum": 366,
+              "total_tokens_sum": 73402,
+              "completion_rate": 0.98,
+              "protocol_score_mean": 1.96
+            },
+            {
+              "run_i": 3,
+              "n": 50,
+              "prompt_tokens_sum": 73036,
+              "completion_tokens_sum": 366,
+              "total_tokens_sum": 73402,
+              "completion_rate": 0.98,
+              "protocol_score_mean": 1.96
+            }
+          ],
+          "prompt_tokens_sum_mean": 73036,
+          "prompt_tokens_sum_std": 0.0,
+          "completion_tokens_sum_mean": 363,
+          "completion_tokens_sum_std": 4.242640687119285,
+          "total_tokens_sum_mean": 73399,
+          "total_tokens_sum_std": 4.242640687119285,
+          "completion_rate_mean": 0.98,
+          "completion_rate_std": 0.0,
+          "protocol_score_mean": 1.96,
+          "protocol_score_std": 0.0,
+          "n_tasks_per_run": 50
+        },
+        "A_plain": {
+          "runs": [
+            {
+              "run_i": 1,
+              "n": 50,
+              "prompt_tokens_sum": 2086,
+              "completion_tokens_sum": 117,
+              "total_tokens_sum": 2203,
+              "completion_rate": 0.12,
+              "protocol_score_mean": 0.24
+            },
+            {
+              "run_i": 2,
+              "n": 50,
+              "prompt_tokens_sum": 2086,
+              "completion_tokens_sum": 122,
+              "total_tokens_sum": 2208,
+              "completion_rate": 0.12,
+              "protocol_score_mean": 0.24
+            },
+            {
+              "run_i": 3,
+              "n": 50,
+              "prompt_tokens_sum": 2086,
+              "completion_tokens_sum": 117,
+              "total_tokens_sum": 2203,
+              "completion_rate": 0.12,
+              "protocol_score_mean": 0.24
+            }
+          ],
+          "prompt_tokens_sum_mean": 2086,
+          "prompt_tokens_sum_std": 0.0,
+          "completion_tokens_sum_mean": 118.66666666666667,
+          "completion_tokens_sum_std": 2.3570226039551585,
+          "total_tokens_sum_mean": 2204.6666666666665,
+          "total_tokens_sum_std": 2.3570226039551585,
+          "completion_rate_mean": 0.12,
+          "completion_rate_std": 0.0,
+          "protocol_score_mean": 0.24,
+          "protocol_score_std": 0.0,
+          "n_tasks_per_run": 50
+        }
+      },
+      "ratios": {
+        "B_over_C_prompt": 9.334867075664622,
+        "B_over_C_total": 9.029648158779628,
+        "C_minus_A_completion_rate": 0.86
+      }
+    },
+    "prog": {
+      "track": "prog",
+      "n_rows": 270,
+      "n_ok_rows": 270,
+      "n_err_rows": 0,
+      "arms": {
+        "A_plain": {
+          "runs": [
+            {
+              "run_i": 1,
+              "n": 30,
+              "prompt_tokens_sum": 1566,
+              "completion_tokens_sum": 66,
+              "total_tokens_sum": 1632,
+              "completion_rate": 0.16666666666666666,
+              "protocol_score_mean": 0.4
+            },
+            {
+              "run_i": 2,
+              "n": 30,
+              "prompt_tokens_sum": 1566,
+              "completion_tokens_sum": 66,
+              "total_tokens_sum": 1632,
+              "completion_rate": 0.16666666666666666,
+              "protocol_score_mean": 0.4
+            },
+            {
+              "run_i": 3,
+              "n": 30,
+              "prompt_tokens_sum": 1566,
+              "completion_tokens_sum": 82,
+              "total_tokens_sum": 1648,
+              "completion_rate": 0.16666666666666666,
+              "protocol_score_mean": 0.4
+            }
+          ],
+          "prompt_tokens_sum_mean": 1566,
+          "prompt_tokens_sum_std": 0.0,
+          "completion_tokens_sum_mean": 71.33333333333333,
+          "completion_tokens_sum_std": 7.542472332656507,
+          "total_tokens_sum_mean": 1637.3333333333333,
+          "total_tokens_sum_std": 7.542472332656507,
+          "completion_rate_mean": 0.16666666666666666,
+          "completion_rate_std": 0.0,
+          "protocol_score_mean": 0.4,
+          "protocol_score_std": 0.0,
+          "n_tasks_per_run": 30
+        },
+        "C_amber": {
+          "runs": [
+            {
+              "run_i": 1,
+              "n": 30,
+              "prompt_tokens_sum": 18447,
+              "completion_tokens_sum": 633,
+              "total_tokens_sum": 19080,
+              "completion_rate": 0.7,
+              "protocol_score_mean": 1.4666666666666666
+            },
+            {
+              "run_i": 2,
+              "n": 30,
+              "prompt_tokens_sum": 18447,
+              "completion_tokens_sum": 664,
+              "total_tokens_sum": 19111,
+              "completion_rate": 0.7,
+              "protocol_score_mean": 1.4666666666666666
+            },
+            {
+              "run_i": 3,
+              "n": 30,
+              "prompt_tokens_sum": 18447,
+              "completion_tokens_sum": 613,
+              "total_tokens_sum": 19060,
+              "completion_rate": 0.7,
+              "protocol_score_mean": 1.4666666666666666
+            }
+          ],
+          "prompt_tokens_sum_mean": 18447,
+          "prompt_tokens_sum_std": 0.0,
+          "completion_tokens_sum_mean": 636.6666666666666,
+          "completion_tokens_sum_std": 20.98147330914162,
+          "total_tokens_sum_mean": 19083.666666666668,
+          "total_tokens_sum_std": 20.98147330914162,
+          "completion_rate_mean": 0.7,
+          "completion_rate_std": 0.0,
+          "protocol_score_mean": 1.4666666666666666,
+          "protocol_score_std": 0.0,
+          "n_tasks_per_run": 30
+        },
+        "B_fullctx": {
+          "runs": [
+            {
+              "run_i": 1,
+              "n": 30,
+              "prompt_tokens_sum": 280986,
+              "completion_tokens_sum": 623,
+              "total_tokens_sum": 281609,
+              "completion_rate": 0.6666666666666666,
+              "protocol_score_mean": 1.4
+            },
+            {
+              "run_i": 2,
+              "n": 30,
+              "prompt_tokens_sum": 280986,
+              "completion_tokens_sum": 636,
+              "total_tokens_sum": 281622,
+              "completion_rate": 0.6666666666666666,
+              "protocol_score_mean": 1.4
+            },
+            {
+              "run_i": 3,
+              "n": 30,
+              "prompt_tokens_sum": 280986,
+              "completion_tokens_sum": 605,
+              "total_tokens_sum": 281591,
+              "completion_rate": 0.6333333333333333,
+              "protocol_score_mean": 1.3333333333333333
+            }
+          ],
+          "prompt_tokens_sum_mean": 280986,
+          "prompt_tokens_sum_std": 0.0,
+          "completion_tokens_sum_mean": 621.3333333333334,
+          "completion_tokens_sum_std": 12.710450643291745,
+          "total_tokens_sum_mean": 281607.3333333333,
+          "total_tokens_sum_std": 12.710450643291745,
+          "completion_rate_mean": 0.6555555555555556,
+          "completion_rate_std": 0.01571348402636772,
+          "protocol_score_mean": 1.3777777777777778,
+          "protocol_score_std": 0.03142696805273544,
+          "n_tasks_per_run": 30
+        }
+      },
+      "ratios": {
+        "B_over_C_prompt": 15.23207025532607,
+        "B_over_C_total": 14.756458402473317,
+        "C_minus_A_completion_rate": 0.5333333333333333
+      }
+    },
+    "lit": {
+      "track": "lit",
+      "n_rows": 180,
+      "n_ok_rows": 180,
+      "n_err_rows": 0,
+      "arms": {
+        "C_amber": {
+          "runs": [
+            {
+              "run_i": 1,
+              "n": 20,
+              "prompt_tokens_sum": 2129,
+              "completion_tokens_sum": 264,
+              "total_tokens_sum": 2393,
+              "completion_rate": 1.0,
+              "protocol_score_mean": 2
+            },
+            {
+              "run_i": 2,
+              "n": 20,
+              "prompt_tokens_sum": 2129,
+              "completion_tokens_sum": 286,
+              "total_tokens_sum": 2415,
+              "completion_rate": 1.0,
+              "protocol_score_mean": 2
+            },
+            {
+              "run_i": 3,
+              "n": 20,
+              "prompt_tokens_sum": 2129,
+              "completion_tokens_sum": 286,
+              "total_tokens_sum": 2415,
+              "completion_rate": 1.0,
+              "protocol_score_mean": 2
+            }
+          ],
+          "prompt_tokens_sum_mean": 2129,
+          "prompt_tokens_sum_std": 0.0,
+          "completion_tokens_sum_mean": 278.6666666666667,
+          "completion_tokens_sum_std": 10.370899457402697,
+          "total_tokens_sum_mean": 2407.6666666666665,
+          "total_tokens_sum_std": 10.370899457402697,
+          "completion_rate_mean": 1.0,
+          "completion_rate_std": 0.0,
+          "protocol_score_mean": 2,
+          "protocol_score_std": 0.0,
+          "n_tasks_per_run": 20
+        },
+        "B_fullctx": {
+          "runs": [
+            {
+              "run_i": 1,
+              "n": 20,
+              "prompt_tokens_sum": 22592,
+              "completion_tokens_sum": 342,
+              "total_tokens_sum": 22934,
+              "completion_rate": 0.9,
+              "protocol_score_mean": 1.8
+            },
+            {
+              "run_i": 2,
+              "n": 20,
+              "prompt_tokens_sum": 22592,
+              "completion_tokens_sum": 335,
+              "total_tokens_sum": 22927,
+              "completion_rate": 0.9,
+              "protocol_score_mean": 1.8
+            },
+            {
+              "run_i": 3,
+              "n": 20,
+              "prompt_tokens_sum": 22592,
+              "completion_tokens_sum": 335,
+              "total_tokens_sum": 22927,
+              "completion_rate": 0.9,
+              "protocol_score_mean": 1.8
+            }
+          ],
+          "prompt_tokens_sum_mean": 22592,
+          "prompt_tokens_sum_std": 0.0,
+          "completion_tokens_sum_mean": 337.3333333333333,
+          "completion_tokens_sum_std": 3.2998316455372216,
+          "total_tokens_sum_mean": 22929.333333333332,
+          "total_tokens_sum_std": 3.2998316455372216,
+          "completion_rate_mean": 0.9,
+          "completion_rate_std": 0.0,
+          "protocol_score_mean": 1.8,
+          "protocol_score_std": 0.0,
+          "n_tasks_per_run": 20
+        },
+        "A_plain": {
+          "runs": [
+            {
+              "run_i": 1,
+              "n": 20,
+              "prompt_tokens_sum": 932,
+              "completion_tokens_sum": 49,
+              "total_tokens_sum": 981,
+              "completion_rate": 0.0,
+              "protocol_score_mean": 0
+            },
+            {
+              "run_i": 2,
+              "n": 20,
+              "prompt_tokens_sum": 932,
+              "completion_tokens_sum": 48,
+              "total_tokens_sum": 980,
+              "completion_rate": 0.0,
+              "protocol_score_mean": 0
+            },
+            {
+              "run_i": 3,
+              "n": 20,
+              "prompt_tokens_sum": 932,
+              "completion_tokens_sum": 48,
+              "total_tokens_sum": 980,
+              "completion_rate": 0.0,
+              "protocol_score_mean": 0
+            }
+          ],
+          "prompt_tokens_sum_mean": 932,
+          "prompt_tokens_sum_std": 0.0,
+          "completion_tokens_sum_mean": 48.333333333333336,
+          "completion_tokens_sum_std": 0.4714045207910317,
+          "total_tokens_sum_mean": 980.3333333333334,
+          "total_tokens_sum_std": 0.4714045207910317,
+          "completion_rate_mean": 0.0,
+          "completion_rate_std": 0.0,
+          "protocol_score_mean": 0,
+          "protocol_score_std": 0.0,
+          "n_tasks_per_run": 20
+        }
+      },
+      "ratios": {
+        "B_over_C_prompt": 10.611554720526069,
+        "B_over_C_total": 9.523466703585768,
+        "C_minus_A_completion_rate": 1.0
+      }
+    }
+  },
+  "notes": [
+    "主倍数 = B_fullctx.prompt_tokens_sum / C_amber.prompt_tokens_sum（三轮 mean）",
+    "主表分数 = protocol_score（v2_fair）；human_score 待填",
+    "reference/fair_r2 raw = local_sim 直连 upstream 的已发表对照；接 AMBER 实测请 --backend amber 另写 raw"
+  ],
+  "compare_v1": [
+    {
+      "track": "daily",
+      "v1_B_over_C": 236.07310838445807,
+      "this_B_over_C": 9.334867075664622,
+      "v1_C_rate": 1.0,
+      "this_C_rate": 0.98,
+      "v1_B_rate": 0.9933333333333333,
+      "this_B_rate": 0.98
+    },
+    {
+      "track": "prog",
+      "v1_B_over_C": 15.042427179238679,
+      "this_B_over_C": 15.23207025532607,
+      "v1_C_rate": 0.7444444444444445,
+      "this_C_rate": 0.7,
+      "v1_B_rate": 0.611111111111111,
+      "this_B_rate": 0.6555555555555556
+    },
+    {
+      "track": "lit",
+      "v1_B_over_C": 10.611554720526069,
+      "this_B_over_C": 10.611554720526069,
+      "v1_C_rate": 1.0,
+      "this_C_rate": 1.0,
+      "v1_B_rate": 0.9,
+      "this_B_rate": 0.9
+    }
+  ]
+}

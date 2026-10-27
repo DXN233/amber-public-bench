@@ -1,0 +1,16 @@
+# AMBER 本轮注入（模拟窄窗）
+
+## RESIDENT
+- WORKBENCH_OPS_KEY校验约定：开工约定：ops key 若为空、或含 PLACEHOLDER（大小写不敏感）必须拒绝；实现应落在 engine/ops_guard.py 的 reject_placeholder_key
+- WINDOW_FALLBACK_HEAD 约定值=800；PLACEHOLDER ops key 必须拒绝。
+
+## LEDGER（命中）
+| 锚点 | 精确窗口 | 索引值（事发冻结） | 证据类型 | scope |
+|---|---|---|---|---|
+| WORKBENCH_OPS_KEY校验约定@workbench | engine/ops_guard.py:行5-行5 | 开工约定：ops key 若为空、或含 PLACEHOLDER（大小写不敏感）必须拒绝；实现应落在 engine/ops_guard.py 的 reject_placeholder_key | state | amber-engine |
+
+## 源码锚点（窄）
+```
+# engine/ops_guard.py 当前桩：reject_placeholder_key 始终 return False（错误）
+# 开工约定：空 key 或含 PLACEHOLDER（忽略大小写）→ 返回 True（拒绝）
+```

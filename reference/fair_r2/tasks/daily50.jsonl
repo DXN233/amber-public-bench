@@ -1,0 +1,50 @@
+{"id": "D01", "track": "daily", "category": "fact", "prompt": "价格库一共入库多少条？", "gold": {"must_any": ["145"], "abstain": false}, "rubric": "protocol_v2_fair", "retrieval_query": "价格库一共入库多少条？"}
+{"id": "D02", "track": "daily", "category": "fact", "prompt": "Plus会员月费是多少？", "gold": {"must_any": ["29"], "abstain": false}, "rubric": "protocol_v2_fair", "retrieval_query": "Plus会员月费是多少？"}
+{"id": "D03", "track": "daily", "category": "fact", "prompt": "江湾对账成功率是多少？", "gold": {"must_any": ["95.5", "107/112"], "abstain": false}, "rubric": "protocol_v2_fair", "retrieval_query": "江湾对账成功率是多少？"}
+{"id": "D04", "track": "daily", "category": "fact", "prompt": "茶企北极星指标是什么？", "gold": {"must_any": ["流水", "同比"], "abstain": false}, "rubric": "protocol_v2_fair", "retrieval_query": "茶企北极星指标是什么？"}
+{"id": "D05", "track": "daily", "category": "fact", "prompt": "办公城市在哪？", "gold": {"must_any": ["深圳", "南山"], "abstain": false}, "rubric": "protocol_v2_fair", "retrieval_query": "办公城市在哪？"}
+{"id": "D06", "track": "daily", "category": "pref", "prompt": "技术答复应用什么语言？", "gold": {"must_any": ["简体中文"], "abstain": false}, "rubric": "protocol_v2_fair", "retrieval_query": "技术答复应用什么语言？"}
+{"id": "D07", "track": "daily", "category": "pref", "prompt": "对未覆盖事实应如何处理？", "gold": {"must_any": ["无法定位"], "abstain": false}, "rubric": "protocol_v2_fair", "retrieval_query": "对未覆盖事实应如何处理？"}
+{"id": "D08", "track": "daily", "category": "fact", "prompt": "时区约定是什么？", "gold": {"must_any": ["Asia/Shanghai", "UTC+8", "上海"], "abstain": false}, "rubric": "protocol_v2_fair", "retrieval_query": "时区约定是什么？"}
+{"id": "D09", "track": "daily", "category": "fact", "prompt": "公测网关主机名？", "gold": {"must_any": ["shenzhenbeichenhuizhi.site"], "abstain": false}, "rubric": "protocol_v2_fair", "retrieval_query": "公测网关主机名？"}
+{"id": "D10", "track": "daily", "category": "fact", "prompt": "测试租户 id 是什么？", "gold": {"must_any": ["smoke-grok-20261025"], "abstain": false}, "rubric": "protocol_v2_fair", "retrieval_query": "测试租户 id 是什么？"}
+{"id": "D11", "track": "daily", "category": "convention", "prompt": "WINDOW_SPAN_VERIFY 约定值？", "gold": {"must_any": ["1600"], "abstain": false}, "rubric": "protocol_v2_fair", "retrieval_query": "WINDOW_SPAN_VERIFY 约定值？"}
+{"id": "D12", "track": "daily", "category": "convention", "prompt": "WINDOW_FALLBACK_HEAD 约定值？", "gold": {"must_any": ["800"], "abstain": false}, "rubric": "protocol_v2_fair", "retrieval_query": "WINDOW_FALLBACK_HEAD 约定值？"}
+{"id": "D13", "track": "daily", "category": "convention", "prompt": "诚实出口标记文案？", "gold": {"must_any": ["无法定位"], "abstain": false}, "rubric": "protocol_v2_fair", "retrieval_query": "诚实出口标记文案？"}
+{"id": "D14", "track": "daily", "category": "convention", "prompt": "RESIDENT_MAX_CHARS 是多少？", "gold": {"must_any": ["4000"], "abstain": false}, "rubric": "protocol_v2_fair", "retrieval_query": "RESIDENT_MAX_CHARS 是多少？"}
+{"id": "D15", "track": "daily", "category": "fact", "prompt": "周会定在周几几点？", "gold": {"must_any": ["周二", "10:00"], "abstain": false}, "rubric": "protocol_v2_fair", "retrieval_query": "周会定在周几几点？"}
+{"id": "D16", "track": "daily", "category": "convention", "prompt": "编程时账本与源码种植冲突听谁的？", "gold": {"must_any": ["账本"], "abstain": false}, "rubric": "protocol_v2_fair", "retrieval_query": "编程时账本与源码种植冲突听谁的？"}
+{"id": "D17", "track": "daily", "category": "fact", "prompt": "论文对外署名？", "gold": {"must_any": ["Micheng Shen"], "abstain": false}, "rubric": "protocol_v2_fair", "retrieval_query": "论文对外署名？"}
+{"id": "D18", "track": "daily", "category": "fact", "prompt": "CI runner 标签？", "gold": {"must_any": ["linux-x64-selfhost"], "abstain": false}, "rubric": "protocol_v2_fair", "retrieval_query": "CI runner 标签？"}
+{"id": "D19", "track": "daily", "category": "fact", "prompt": "主库别名？", "gold": {"must_any": ["amber_ledger_v3"], "abstain": false}, "rubric": "protocol_v2_fair", "retrieval_query": "主库别名？"}
+{"id": "D20", "track": "daily", "category": "fact", "prompt": "点查 P95 目标？", "gold": {"must_any": ["800ms", "800"], "abstain": false}, "rubric": "protocol_v2_fair", "retrieval_query": "点查 P95 目标？"}
+{"id": "D21", "track": "daily", "category": "fact", "prompt": "默认上游模型请求名？", "gold": {"must_any": ["deepseek-chat"], "abstain": false}, "rubric": "protocol_v2_fair", "retrieval_query": "默认上游模型请求名？"}
+{"id": "D22", "track": "daily", "category": "fact", "prompt": "如何关闭 gap-v1-v2？", "gold": {"must_any": ["AMBER_GAP_V1_V2=0", "=0"], "abstain": false}, "rubric": "protocol_v2_fair", "retrieval_query": "如何关闭 gap-v1-v2？"}
+{"id": "D23", "track": "daily", "category": "fact", "prompt": "茶企 SKU 在册多少个？", "gold": {"must_any": ["38"], "abstain": false}, "rubric": "protocol_v2_fair", "retrieval_query": "茶企 SKU 在册多少个？"}
+{"id": "D24", "track": "daily", "category": "fact", "prompt": "对账负责人花名？", "gold": {"must_any": ["青禾"], "abstain": false}, "rubric": "protocol_v2_fair", "retrieval_query": "对账负责人花名？"}
+{"id": "D25", "track": "daily", "category": "pref", "prompt": "正式报告能否用 emoji？", "gold": {"must_any": ["不要", "不要 emoji", "无 emoji"], "abstain": false}, "rubric": "protocol_v2_fair", "retrieval_query": "正式报告能否用 emoji？"}
+{"id": "D26", "track": "daily", "category": "fact", "prompt": "收货城市？", "gold": {"must_any": ["上海"], "abstain": false}, "rubric": "protocol_v2_fair", "retrieval_query": "收货城市？"}
+{"id": "D27", "track": "daily", "category": "fact", "prompt": "办公 VPN 配置名？", "gold": {"must_any": ["amber-office-a"], "abstain": false}, "rubric": "protocol_v2_fair", "retrieval_query": "办公 VPN 配置名？"}
+{"id": "D28", "track": "daily", "category": "fact", "prompt": "账本备份 cron？", "gold": {"must_any": ["03:15"], "abstain": false}, "rubric": "protocol_v2_fair", "retrieval_query": "账本备份 cron？"}
+{"id": "D29", "track": "daily", "category": "fact", "prompt": "告警频道？", "gold": {"must_any": ["#amber-ops", "amber-ops"], "abstain": false}, "rubric": "protocol_v2_fair", "retrieval_query": "告警频道？"}
+{"id": "D30", "track": "daily", "category": "convention", "prompt": "LEDGER 索引值行可否改写？", "gold": {"must_any": ["append-only", "禁止改写", "禁止"], "abstain": false}, "rubric": "protocol_v2_fair", "retrieval_query": "LEDGER 索引值行可否改写？"}
+{"id": "D31", "track": "daily", "category": "fact", "prompt": "本机验收命令？", "gold": {"must_any": ["pytest"], "abstain": false}, "rubric": "protocol_v2_fair", "retrieval_query": "本机验收命令？"}
+{"id": "D32", "track": "daily", "category": "fact", "prompt": "青青桌面主题色约定？", "gold": {"must_any": ["#2F6F4E", "竹青"], "abstain": false}, "rubric": "protocol_v2_fair", "retrieval_query": "青青桌面主题色约定？"}
+{"id": "D33", "track": "daily", "category": "fact", "prompt": "小憩默认多久？", "gold": {"must_any": ["25"], "abstain": false}, "rubric": "protocol_v2_fair", "retrieval_query": "小憩默认多久？"}
+{"id": "D34", "track": "daily", "category": "fact", "prompt": "专注块默认多久？", "gold": {"must_any": ["50"], "abstain": false}, "rubric": "protocol_v2_fair", "retrieval_query": "专注块默认多久？"}
+{"id": "D35", "track": "daily", "category": "convention", "prompt": "私密桶前缀是什么？是否进 Today？", "gold": {"must_any": ["private/", "不进"], "abstain": false}, "rubric": "protocol_v2_fair", "retrieval_query": "私密桶前缀是什么？是否进 Today？"}
+{"id": "D36", "track": "daily", "category": "convention", "prompt": "外发前待审确认字段？", "gold": {"must_any": ["human_confirm"], "abstain": false}, "rubric": "protocol_v2_fair", "retrieval_query": "外发前待审确认字段？"}
+{"id": "D37", "track": "daily", "category": "fact", "prompt": "arXiv 显示名？", "gold": {"must_any": ["Micheng Shen"], "abstain": false}, "rubric": "protocol_v2_fair", "retrieval_query": "arXiv 显示名？"}
+{"id": "D38", "track": "daily", "category": "fact", "prompt": "公开对照 max_tokens？", "gold": {"must_any": ["400"], "abstain": false}, "rubric": "protocol_v2_fair", "retrieval_query": "公开对照 max_tokens？"}
+{"id": "D39", "track": "daily", "category": "fact", "prompt": "对照臂 A_plain 定义？", "gold": {"must_any": ["无记忆"], "abstain": false}, "rubric": "protocol_v2_fair", "retrieval_query": "对照臂 A_plain 定义？"}
+{"id": "D40", "track": "daily", "category": "fact", "prompt": "茶企爆款 SKU？", "gold": {"must_any": ["龙井礼盒-A", "龙井"], "abstain": false}, "rubric": "protocol_v2_fair", "retrieval_query": "茶企爆款 SKU？"}
+{"id": "D41", "track": "daily", "category": "fact", "prompt": "月错误预算？", "gold": {"must_any": ["0.5%"], "abstain": false}, "rubric": "protocol_v2_fair", "retrieval_query": "月错误预算？"}
+{"id": "D42", "track": "daily", "category": "fact", "prompt": "本周 oncall？", "gold": {"must_any": ["青禾"], "abstain": false}, "rubric": "protocol_v2_fair", "retrieval_query": "本周 oncall？"}
+{"id": "D43", "track": "daily", "category": "fact", "prompt": "内部文档根文件？", "gold": {"must_any": ["USAGE-TRACKS"], "abstain": false}, "rubric": "protocol_v2_fair", "retrieval_query": "内部文档根文件？"}
+{"id": "D44", "track": "daily", "category": "fact", "prompt": "常驻层注入上限字符数？", "gold": {"must_any": ["4000"], "abstain": false}, "rubric": "protocol_v2_fair", "retrieval_query": "常驻层注入上限字符数？"}
+{"id": "D45", "track": "daily", "category": "abstain", "prompt": "欧洲仓对账成功率是多少？", "gold": {"must_any": ["无法定位"], "abstain": true}, "rubric": "protocol_v2_fair", "retrieval_query": "欧洲仓对账成功率是多少？"}
+{"id": "D46", "track": "daily", "category": "abstain", "prompt": "Plus 年费是多少？（账本仅有月费）", "gold": {"must_any": ["无法定位"], "abstain": true}, "rubric": "protocol_v2_fair", "retrieval_query": "Plus 年费是多少？（账本仅有月费）"}
+{"id": "D47", "track": "daily", "category": "abstain", "prompt": "用户的银行卡号后四位？", "gold": {"must_any": ["无法定位"], "abstain": true}, "rubric": "protocol_v2_fair", "retrieval_query": "用户的银行卡号后四位？"}
+{"id": "D48", "track": "daily", "category": "abstain", "prompt": "未入库的「星巴克联名茶」单价？", "gold": {"must_any": ["无法定位"], "abstain": true}, "rubric": "protocol_v2_fair", "retrieval_query": "未入库的「星巴克联名茶」单价？"}
+{"id": "D49", "track": "daily", "category": "pref", "prompt": "代码注释应用什么语言？", "gold": {"must_any": ["英文"], "abstain": false}, "rubric": "protocol_v2_fair", "retrieval_query": "代码注释应用什么语言？"}
+{"id": "D50", "track": "daily", "category": "fact", "prompt": "产品侧对用户的称呼？", "gold": {"must_any": ["纳西妲"], "abstain": false}, "rubric": "protocol_v2_fair", "retrieval_query": "产品侧对用户的称呼？"}

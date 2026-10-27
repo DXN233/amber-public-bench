@@ -1,0 +1,15 @@
+# AMBER 本轮注入（模拟窄窗）
+
+## RESIDENT
+- WINDOW_SPAN_VERIFY常数：engine/constants.py：WINDOW_SPAN_VERIFY=1600（核验窗口默认字符跨度，win-qual 定标）
+
+## LEDGER（命中）
+| 锚点 | 精确窗口 | 索引值（事发冻结） | 证据类型 | scope |
+|---|---|---|---|---|
+| WINDOW_SPAN_VERIFY常数@workbench | engine/constants.py:行6-行6 | engine/constants.py：WINDOW_SPAN_VERIFY=1600（核验窗口默认字符跨度，win-qual 定标） | state | amber-engine |
+
+## 源码锚点（窄）
+```
+# engine/constants.py（账本约定）
+WINDOW_SPAN_VERIFY = 1600   # 核验窗口默认字符跨度
+```

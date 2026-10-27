@@ -1,0 +1,9 @@
+## 任务
+请定位模块 itsdangerous.session_policy 中的常量 DEFAULT_SESSION_MAX_AGE 以及函数 enforce_session_ttl() 的约定值与路径。若仓库没有该 API，请诚实回答。
+
+## 上下文（AMBER 窄窗账本）
+# AMBER LEDGER / RESIDENT（窄窗）
+| 锚点 | 路径 | 约定 | 状态 |
+|---|---|---|---|
+| TimestampSigner.unsign | src/itsdangerous/timed.py | max_age 为参数，库内无 DEFAULT_SESSION_MAX_AGE 常量 | state |
+| 索引覆盖 | — | 无 itsdangerous.session_policy / enforce_session_ttl | state |

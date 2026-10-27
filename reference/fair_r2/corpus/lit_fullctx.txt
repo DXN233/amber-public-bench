@@ -1,0 +1,79 @@
+arXiv:2404.11018
+Title:Leave No Context Behind: Efficient Infinite Context Transformers with Infini-attention
+Abstract:We introduce Infini-attention, which incorporates compressive memory into attention to enable Transformer LLMs to effectively model infinitely long contexts with bounded memory and computation. Experiments show strong performance on long-context language modeling and passkey retrieval.
+
+arXiv:2307.03172
+Title:Lost in the Middle: How Language Models Use Long Contexts
+Abstract:We analyze how language models use long contexts and find that performance is often highest when relevant information occurs at the beginning or end of the input context, and significantly degrades when models must access relevant information in the middle.
+
+arXiv:2410.10813
+Title:LongMemEval: Benchmarking Chat Assistants on Long-Term Interactive Memory
+Abstract:We introduce LongMemEval, a comprehensive benchmark for evaluating long-term memory in chat assistants, covering information extraction, multi-session reasoning, knowledge updates, temporal reasoning, and abstention.
+
+arXiv:2210.03629
+Title:ReAct: Synergizing Reasoning and Acting in Language Models
+Abstract:We introduce ReAct, a paradigm that combines reasoning traces and task-specific actions in an interleaved manner, enabling LLMs to induce better representations and interact with external environments.
+
+arXiv:2310.06117
+Title:MemGPT: Towards LLMs as Operating Systems
+Abstract:We propose MemGPT, a system that virtualizes LLM context windows using hierarchical memory management inspired by operating systems, enabling extended conversations and document analysis beyond the LLM context limit.
+
+arXiv:2402.09727
+Title:RAPTOR: Recursive Abstractive Processing for Tree-Organized Retrieval
+Abstract:RAPTOR constructs a recursive tree of summaries for retrieval-augmented generation, allowing models to use information at different levels of abstraction across long documents.
+
+arXiv:2312.10997
+Title:Retrieval-Augmented Generation for Large Language Models: A Survey
+Abstract:A survey of RAG methods covering naive RAG, advanced RAG, and modular RAG, discussing retrieval quality, augmentation strategies, and evaluation challenges.
+
+arXiv:2005.11401
+Title:Retrieval-Augmented Generation for Knowledge-Intensive NLP Tasks
+Abstract:RAG combines a pre-trained parametric memory with a non-parametric dense vector index of Wikipedia, improving performance on knowledge-intensive NLP tasks.
+
+arXiv:2305.14251
+Title:Toolformer: Language Models Can Teach Themselves to Use Tools
+Abstract:Toolformer is an LLM trained to decide which APIs to call, when to call them, what arguments to pass, and how to incorporate results into future token prediction.
+
+arXiv:2212.10560
+Title:Self-Instruct: Aligning Language Models with Self-Generated Instructions
+Abstract:Self-Instruct improves instruction following by bootstrapping off the model's own generations, constructing a large instruction dataset with minimal human labeling.
+
+arXiv:2305.18290
+Title:Let's Verify Step by Step
+Abstract:Process-based reward models that provide feedback for each reasoning step outperform outcome-based reward models on mathematical reasoning benchmarks.
+
+arXiv:2201.11903
+Title:Chain-of-Thought Prompting Elicits Reasoning in Large Language Models
+Abstract:Chain-of-thought prompting elicits multi-step reasoning by providing intermediate reasoning steps in few-shot exemplars, improving performance on arithmetic and symbolic reasoning.
+
+arXiv:2305.10601
+Title:Tree of Thoughts: Deliberate Problem Solving with Large Language Models
+Abstract:Tree of Thoughts generalizes chain-of-thought by exploring multiple reasoning paths as a tree, with deliberate decision-making via search algorithms.
+
+arXiv:2401.04398
+Title:Agent Laboratory: Using LLM Agents as Research Assistants
+Abstract:Agent Laboratory is a framework where LLM agents collaborate to conduct research, including literature review, experimentation, and report writing.
+
+arXiv:2310.08560
+Title:FireAct: Toward Language Agent Fine-tuning
+Abstract:FireAct studies fine-tuning language agents with diverse trajectories and shows that fine-tuning can improve agent robustness and efficiency compared to prompting alone.
+
+arXiv:2406.04692
+Title:A Survey on Retrieval-Augmented Text Generation for Large Language Models
+Abstract:This survey reviews retrieval-augmented text generation architectures, training strategies, and applications for large language models.
+
+arXiv:2308.09583
+Title:The Rise and Potential of Large Language Model Based Agents: A Survey
+Abstract:A survey of LLM-based agents covering perception, planning, memory, and tool use, and discussing open challenges for autonomous agents.
+
+arXiv:2402.01622
+Title:An Empirical Study of Retrieval-Augmented Code Generation
+Abstract:Empirical study showing how retrieval of similar code snippets improves code generation quality across models and languages.
+
+arXiv:2501.00663
+Title:KV-Cache Compression Methods for Efficient Long-Context Inference: A Survey
+Abstract:A survey of key-value cache compression techniques that reduce memory and latency for long-context LLM inference while preserving quality.
+
+arXiv:2309.00267
+Title:Cognitive Architectures for Language Agents
+Abstract:CoALA proposes a conceptual framework for language agents that organizes memory, action spaces, and decision-making inspired by cognitive science.

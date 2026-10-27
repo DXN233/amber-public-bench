@@ -1,0 +1,9 @@
+## 任务
+请定位 promptimal.quantum.teleport 模块中 DEFAULT_TELEPORT_TIMEOUT 的约定值与路径。若无法定位请诚实回答。
+
+## 上下文（AMBER 窄窗账本）
+# AMBER LEDGER / RESIDENT（窄窗）
+| 锚点 | 路径 | 约定 | 状态 |
+|---|---|---|---|
+| optimize() | promptimal/optimizer/main.py | population_size=5, num_iters=5, num_elites=2 | state |
+| 索引覆盖 | — | 无 promptimal.quantum / DEFAULT_TELEPORT_TIMEOUT | state |

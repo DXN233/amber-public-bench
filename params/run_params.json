@@ -1,0 +1,36 @@
+{
+  "method_id": "amber-public-bench-20261027-r2-fair",
+  "date_local": "2026-10-27",
+  "timezone": "Asia/Shanghai",
+  "model_requested": "deepseek-chat",
+  "temperature": 0,
+  "max_tokens": 400,
+  "repeats": 3,
+  "arms": [
+    "A_plain",
+    "B_fullctx",
+    "C_amber"
+  ],
+  "primary_ratio": "B_fullctx.prompt_tokens / C_amber.prompt_tokens",
+  "token_source": "API usage fields",
+  "system_prompt": "你是严谨助手。只依据给定上下文回答；上下文未覆盖则答「无法定位」。不要编造数字或 API。回答尽量短。",
+  "fairness": {
+    "daily_no_noise_hist": true,
+    "prog_shared_ledger_on_B": true,
+    "prog_strip_abstain_coaching": true,
+    "protocol": "protocol_v2_fair"
+  },
+  "default_data_dir": "reference/fair_r2",
+  "backends": {
+    "amber": "Primary: C arm hits AMBER OpenAI-compatible API with memory ON; A may use upstream; B is full-context baseline to same/upstream model.",
+    "local_sim": "Reference reproduction: assemble A/B/C messages locally, all call UPSTREAM (DeepSeek). Matches published fair_r2 raw/."
+  },
+  "amber_memory_switch": {
+    "env": "AMBER_MEMORY=on|off",
+    "header": "X-AMBER-Memory: on|off",
+    "dual_endpoint_note": "Or point AMBER_BASE_URL_MEMORY_ON / AMBER_BASE_URL_MEMORY_OFF to two routes"
+  },
+  "key_last4_upstream_historical": "acf5",
+  "cloud_gateway_historical": "https://shenzhenbeichenhuizhi.site/v1",
+  "cloud_gateway_status_historical": "reachable_but_401_no_smoke_key_on_runner"
+}

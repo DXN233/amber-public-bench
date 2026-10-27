@@ -1,0 +1,102 @@
+[
+  {
+    "arxiv_id": "2404.11018",
+    "title": "Leave No Context Behind: Efficient Infinite Context Transformers with Infini-attention",
+    "abstract": "We introduce Infini-attention, which incorporates compressive memory into attention to enable Transformer LLMs to effectively model infinitely long contexts with bounded memory and computation. Experiments show strong performance on long-context language modeling and passkey retrieval."
+  },
+  {
+    "arxiv_id": "2307.03172",
+    "title": "Lost in the Middle: How Language Models Use Long Contexts",
+    "abstract": "We analyze how language models use long contexts and find that performance is often highest when relevant information occurs at the beginning or end of the input context, and significantly degrades when models must access relevant information in the middle."
+  },
+  {
+    "arxiv_id": "2410.10813",
+    "title": "LongMemEval: Benchmarking Chat Assistants on Long-Term Interactive Memory",
+    "abstract": "We introduce LongMemEval, a comprehensive benchmark for evaluating long-term memory in chat assistants, covering information extraction, multi-session reasoning, knowledge updates, temporal reasoning, and abstention."
+  },
+  {
+    "arxiv_id": "2210.03629",
+    "title": "ReAct: Synergizing Reasoning and Acting in Language Models",
+    "abstract": "We introduce ReAct, a paradigm that combines reasoning traces and task-specific actions in an interleaved manner, enabling LLMs to induce better representations and interact with external environments."
+  },
+  {
+    "arxiv_id": "2310.06117",
+    "title": "MemGPT: Towards LLMs as Operating Systems",
+    "abstract": "We propose MemGPT, a system that virtualizes LLM context windows using hierarchical memory management inspired by operating systems, enabling extended conversations and document analysis beyond the LLM context limit."
+  },
+  {
+    "arxiv_id": "2402.09727",
+    "title": "RAPTOR: Recursive Abstractive Processing for Tree-Organized Retrieval",
+    "abstract": "RAPTOR constructs a recursive tree of summaries for retrieval-augmented generation, allowing models to use information at different levels of abstraction across long documents."
+  },
+  {
+    "arxiv_id": "2312.10997",
+    "title": "Retrieval-Augmented Generation for Large Language Models: A Survey",
+    "abstract": "A survey of RAG methods covering naive RAG, advanced RAG, and modular RAG, discussing retrieval quality, augmentation strategies, and evaluation challenges."
+  },
+  {
+    "arxiv_id": "2005.11401",
+    "title": "Retrieval-Augmented Generation for Knowledge-Intensive NLP Tasks",
+    "abstract": "RAG combines a pre-trained parametric memory with a non-parametric dense vector index of Wikipedia, improving performance on knowledge-intensive NLP tasks."
+  },
+  {
+    "arxiv_id": "2305.14251",
+    "title": "Toolformer: Language Models Can Teach Themselves to Use Tools",
+    "abstract": "Toolformer is an LLM trained to decide which APIs to call, when to call them, what arguments to pass, and how to incorporate results into future token prediction."
+  },
+  {
+    "arxiv_id": "2212.10560",
+    "title": "Self-Instruct: Aligning Language Models with Self-Generated Instructions",
+    "abstract": "Self-Instruct improves instruction following by bootstrapping off the model's own generations, constructing a large instruction dataset with minimal human labeling."
+  },
+  {
+    "arxiv_id": "2305.18290",
+    "title": "Let's Verify Step by Step",
+    "abstract": "Process-based reward models that provide feedback for each reasoning step outperform outcome-based reward models on mathematical reasoning benchmarks."
+  },
+  {
+    "arxiv_id": "2201.11903",
+    "title": "Chain-of-Thought Prompting Elicits Reasoning in Large Language Models",
+    "abstract": "Chain-of-thought prompting elicits multi-step reasoning by providing intermediate reasoning steps in few-shot exemplars, improving performance on arithmetic and symbolic reasoning."
+  },
+  {
+    "arxiv_id": "2305.10601",
+    "title": "Tree of Thoughts: Deliberate Problem Solving with Large Language Models",
+    "abstract": "Tree of Thoughts generalizes chain-of-thought by exploring multiple reasoning paths as a tree, with deliberate decision-making via search algorithms."
+  },
+  {
+    "arxiv_id": "2401.04398",
+    "title": "Agent Laboratory: Using LLM Agents as Research Assistants",
+    "abstract": "Agent Laboratory is a framework where LLM agents collaborate to conduct research, including literature review, experimentation, and report writing."
+  },
+  {
+    "arxiv_id": "2310.08560",
+    "title": "FireAct: Toward Language Agent Fine-tuning",
+    "abstract": "FireAct studies fine-tuning language agents with diverse trajectories and shows that fine-tuning can improve agent robustness and efficiency compared to prompting alone."
+  },
+  {
+    "arxiv_id": "2406.04692",
+    "title": "A Survey on Retrieval-Augmented Text Generation for Large Language Models",
+    "abstract": "This survey reviews retrieval-augmented text generation architectures, training strategies, and applications for large language models."
+  },
+  {
+    "arxiv_id": "2308.09583",
+    "title": "The Rise and Potential of Large Language Model Based Agents: A Survey",
+    "abstract": "A survey of LLM-based agents covering perception, planning, memory, and tool use, and discussing open challenges for autonomous agents."
+  },
+  {
+    "arxiv_id": "2402.01622",
+    "title": "An Empirical Study of Retrieval-Augmented Code Generation",
+    "abstract": "Empirical study showing how retrieval of similar code snippets improves code generation quality across models and languages."
+  },
+  {
+    "arxiv_id": "2501.00663",
+    "title": "KV-Cache Compression Methods for Efficient Long-Context Inference: A Survey",
+    "abstract": "A survey of key-value cache compression techniques that reduce memory and latency for long-context LLM inference while preserving quality."
+  },
+  {
+    "arxiv_id": "2309.00267",
+    "title": "Cognitive Architectures for Language Agents",
+    "abstract": "CoALA proposes a conceptual framework for language agents that organizes memory, action spaces, and decision-making inspired by cognitive science."
+  }
+]

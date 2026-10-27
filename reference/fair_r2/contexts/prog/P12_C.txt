@@ -1,0 +1,50 @@
+【任务书】
+Bug report in MarkupSafe HTML escaping:
+`escape('<')` and `escape('>')` appear swapped — the `<` character is being turned into `&gt;` and `>` into `&lt;`.
+Fix `_escape_inner` in `src/markupsafe/_native.py` so `<` → `&lt;` and `>` → `&gt;` (keep `&`, `'`, `"` mappings unchanged; `&` must still be replaced first).
+Do not touch tests/.
+
+# MECHANICAL INDEX (auto; not a solution ledger)
+src/markupsafe/_native.py:1  def _escape_inner(s: str, /) -> str:
+src/markupsafe/__init__.py:20  class _TPEscape(t.Protocol):
+src/markupsafe/__init__.py:24  def escape(s: t.Any, /) -> Markup:
+src/markupsafe/__init__.py:48  def escape_silent(s: t.Any | None, /) -> Markup:
+src/markupsafe/__init__.py:188  def unescape(self, /) -> str:
+src/markupsafe/__init__.py:241  def escape(cls, s: t.Any, /) -> te.Self:
+src/markupsafe/__init__.py:342  class EscapeFormatter(string.Formatter):
+src/markupsafe/__init__.py:367  class _MarkupEscapeHelper:
+src/markupsafe/__init__.py:345  def __init__(self, escape: _TPEscape) -> None:
+src/markupsafe/__init__.py:372  def __init__(self, obj: t.Any, escape: _TPEscape) -> None:
+src/markupsafe/__init__.py:16  class _HasHTML(t.Protocol):
+src/markupsafe/__init__.py:17  def __html__(self, /) -> str: ...
+src/markupsafe/__init__.py:21  def __call__(self, s: t.Any, /) -> Markup: ...
+src/markupsafe/__init__.py:64  def soft_str(s: t.Any, /) -> str:
+src/markupsafe/__init__.py:84  class Markup(str):
+src/markupsafe/__init__.py:122  def __new__(
+src/markupsafe/__init__.py:133  def __html__(self, /) -> te.Self:
+src/markupsafe/__init__.py:136  def __add__(self, value: str | _HasHTML, /) -> te.Self:
+# README head
+<div align="center"><img src="https://raw.githubusercontent.com/pallets/markupsafe/refs/heads/stable/docs/_static/markupsafe-name.svg" alt="" height="150"></div>
+
+# MarkupSafe
+
+MarkupSafe implements a text object that escapes characters so it is
+safe to use in HTML and XML. Characters that have special meanings are
+replaced so that they display as the actual characters. This mitigates
+injection attacks, meaning untrusted user input can safely be displayed
+on a page.
+
+## Examples
+
+```pycon
+>>> f
+
+# AUTO FILE WINDOW: src/markupsafe/_native.py (full_small)
+def _escape_inner(s: str, /) -> str:
+    return (
+        s.replace("&", "&amp;")
+        .replace(">", "&lt;")
+        .replace("<", "&gt;")
+        .replace("'", "&#39;")
+        .replace('"', "&#34;")
+    )

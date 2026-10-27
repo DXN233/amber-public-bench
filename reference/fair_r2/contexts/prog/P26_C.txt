@@ -1,0 +1,13 @@
+## 任务
+优化器每代候选数默认被改坏了。请定位 optimize() 的 population_size 默认值应恢复为多少，以及所在文件。回答：参数名、正确默认值、文件路径。
+
+## 上下文（AMBER 窄窗账本）
+# AMBER LEDGER / RESIDENT（窄窗）
+| 锚点 | 路径 | 约定 | 状态 |
+|---|---|---|---|
+| optimize.population_size@promptimal | promptimal/optimizer/main.py | population_size 默认 = 5 | state |
+| optimize.num_iters | promptimal/optimizer/main.py | num_iters 默认 = 5 | state |
+| optimize.num_elites | promptimal/optimizer/main.py | num_elites 默认 = 2 | state |
+
+## 开工摘录
+- 每代候选数默认保持 5，不要改成 50。

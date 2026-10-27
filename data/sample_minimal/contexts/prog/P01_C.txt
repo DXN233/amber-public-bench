@@ -1,0 +1,2 @@
+【窄窗】
+WINDOW_SPAN_VERIFY = 1600  # demo/constants.py

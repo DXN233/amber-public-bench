@@ -1,0 +1,93 @@
+【任务书】
+Bug report in dirty-equals `Contains`:
+When multiple values are passed, `Contains(1, 9)` incorrectly matches a list that only contains `1` (it seems to succeed if ANY value is present). It must require ALL values to be contained.
+Fix `Contains.equals` in `dirty_equals/_sequence.py`. Single-value Contains must still work. Do not touch tests/.
+
+# MECHANICAL INDEX (auto; not a solution ledger)
+dirty_equals/_sequence.py:59  def equals(self, other: Any) -> bool:
+dirty_equals/_sequence.py:88  def equals(self, other: Any) -> bool:
+dirty_equals/_sequence.py:188  def equals(self, other: Any) -> bool:
+dirty_equals/_sequence.py:21  class HasLen(DirtyEquals[Sized]):
+dirty_equals/_sequence.py:63  class Contains(DirtyEquals[Container[Any]]):
+dirty_equals/_sequence.py:92  class IsListOrTuple(DirtyEquals[T]):
+dirty_equals/_sequence.py:68  def __init__(self, contained_value: Any, *more_contained_values: Any):
+dirty_equals/_sequence.py:27  def __init__(self, length: int): ...
+dirty_equals/_sequence.py:30  def __init__(self, min_length: int, max_length: Union[int, Any]): ...
+dirty_equals/_sequence.py:32  def __init__(self, min_length: int, max_length: Union[None, int, Any] = None):  # type: ignore[misc]
+dirty_equals/_sequence.py:100  def __init__(self, *items: Any, check_order: bool = True, length: 'LengthType' = None): ...
+dirty_equals/_sequence.py:103  def __init__(self, positions: dict[int, Any], length: 'LengthType' = None): ...
+dirty_equals/_sequence.py:105  def __init__(
+dirty_equals/_sequence.py:218  class IsList(IsListOrTuple[list[Any]]):
+dirty_equals/_sequence.py:239  class IsTuple(IsListOrTuple[tuple[Any, ...]]):
+dirty_equals/_sequence.py:260  def _length_repr(length: 'LengthType') -> Any:
+dirty_equals/_sequence.py:272  def _length_correct(length: 'LengthType', other: 'Sized') -> bool:
+dirty_equals/_base.py:21  class DirtyEqualsMeta(ABCMeta):
+# README head
+<p align="center">
+  <a href="https://dirty-equals.helpmanual.io">
+    <img src="https://dirty-equals.helpmanual.io/latest/img/logo-text.svg" alt="dirty-equals">
+  </a>
+</p>
+<p align="center">
+  <em>Doing dirty (but extremely useful) things with equals.</em>
+</p>
+<p align="center">
+  <a href="https://github.com/samuelcolvin/dirty-equals/actions/workflows/ci.yml?query=event%3Apush+branch%3Amain+workflow%3ACI"><img src="https://github.com/samuelcolvin/dirty-equals/actions/workflows/ci.yml/badge.sv
+
+# AUTO FILE WINDOW: dirty_equals/_sequence.py (slice)
+# slice around L59 (file has 10247 chars; truncated)
+        from dirty_equals import HasLen
+
+        assert [1, 2, 3] == HasLen(3)  # (1)!
+        assert '123' == HasLen(3, ...)  # (2)!
+        assert (1, 2, 3) == HasLen(3, 5)  # (3)!
+        assert (1, 2, 3) == HasLen(0, ...)  # (4)!
+        ```
+
+        1. Length must be 3.
+        2. Length must be 3 or higher.
+        3. Length must be between 3 and 5 inclusive.
+        4. Length is required but can take any value.
+        """
+        if max_length is None:
+            self.length: LengthType = min_length
+            super().__init__(self.length)
+        else:
+            self.length = (min_length, max_length)
+            super().__init__(*_length_repr(self.length))
+
+    def equals(self, other: Any) -> bool:
+        return _length_correct(self.length, other)
+
+class Contains(DirtyEquals[Container[Any]]):
+    """
+    Check that an object contains one or more values.
+    """
+
+    def __init__(self, contained_value: Any, *more_contained_values: Any):
+        """
+        Args:
+            contained_value: value that must be contained in the compared object.
+            *more_contained_values: more values that must be contained in the compared object.
+
+        ```py title="Contains"
+        from dirty_equals import Contains
+
+        assert [1, 2, 3] == Contains(1)
+        assert [1, 2, 3] == Contains(1, 2)
+        assert (1, 2, 3) == Contains(1)
+        assert 'abc' == Contains('b')
+        assert {'a': 1, 'b': 2} == Contains('a')
+        assert [1, 2, 3] != Contains(10)
+        ```
+        """
+        self.contained_values: tuple[Any, ...] = (contained_value,) + more_contained_values
+        super().__init__(*self.contained_values)
+
+    def equals(self, other: Any) -> bool:
+        return any(v in other for v in self.contained_values)  # BUG: any instead of all
+
+class IsListOrTuple(DirtyEquals[T]):
+    """
+    Check that some object is a list or tuple and optionally its values match some constraints.
+    """

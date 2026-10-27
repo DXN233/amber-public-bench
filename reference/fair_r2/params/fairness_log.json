@@ -1,0 +1,67 @@
+[
+  {
+    "id": "P02",
+    "action": "strip_coaching_C",
+    "delta_chars": 33
+  },
+  {
+    "id": "P03",
+    "action": "prepend_ledger_to_B",
+    "missing": [
+      "31"
+    ]
+  },
+  {
+    "id": "P05",
+    "action": "strip_coaching_C",
+    "delta_chars": 30
+  },
+  {
+    "id": "P06",
+    "action": "prepend_ledger_to_B",
+    "missing": [
+      "1600"
+    ]
+  },
+  {
+    "id": "P07",
+    "action": "prepend_ledger_to_B",
+    "missing": [
+      "is_cannot_locate"
+    ]
+  },
+  {
+    "id": "P09",
+    "action": "prepend_ledger_to_B",
+    "missing": [
+      "800"
+    ]
+  },
+  {
+    "id": "P11",
+    "action": "strip_coaching_C",
+    "delta_chars": 35
+  },
+  {
+    "id": "P11",
+    "action": "strip_coaching_B",
+    "delta_chars": 53
+  },
+  {
+    "id": "P21",
+    "action": "prepend_ledger_to_B",
+    "missing": [
+      "namelist"
+    ]
+  },
+  {
+    "id": "P30",
+    "action": "strip_coaching_C",
+    "delta_chars": 35
+  },
+  {
+    "id": "P30",
+    "action": "strip_coaching_B",
+    "delta_chars": 53
+  }
+]
